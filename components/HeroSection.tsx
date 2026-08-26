@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { 
   ShieldCheck, 
   Search, 
@@ -12,45 +14,37 @@ import {
   Lock, 
   Building2,
   Copy,
-  Check
+  Check,
+  ArrowRight,
+  Award
 } from "lucide-react";
+import { formatHash, copyTextToClipboard } from "@/lib/crypto";
 
 interface HeroSectionProps {
-  onOpenDemoModal: () => void;
-  onOpenWhitepaperModal: () => void;
+  onOpenDemoModal?: () => void;
+  onOpenWhitepaperModal?: () => void;
 }
 
 export default function HeroSection({ onOpenDemoModal, onOpenWhitepaperModal }: HeroSectionProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResultState, setSearchResultState] = useState<"idle" | "searching" | "found" | "not_found">("idle");
   const [copiedHash, setCopiedHash] = useState(false);
+  const router = useRouter();
 
-  const sampleAnchorId = "0x8f2d91a4c9b3e10984f102c34b";
+  const samplePermanentId = "CRED-7F83A91";
+  const sampleHash = "a71f92e48b11c97a5482e987c61d5203fbc1029384756bca9201948572019485";
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!searchQuery.trim()) return;
-
-    setSearchResultState("searching");
-    setTimeout(() => {
-      if (
-        searchQuery.toLowerCase().includes("evelyn") ||
-        searchQuery.toLowerCase().includes("8f2d") ||
-        searchQuery.toLowerCase().includes("doc") ||
-        searchQuery.toLowerCase().includes("0x") ||
-        searchQuery.length > 2
-      ) {
-        setSearchResultState("found");
-      } else {
-        setSearchResultState("not_found");
-      }
-    }, 600);
+    const query = searchQuery.trim() || samplePermanentId;
+    router.push(`/verify?id=${encodeURIComponent(query)}`);
   };
 
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(sampleAnchorId);
-    setCopiedHash(true);
-    setTimeout(() => setCopiedHash(false), 2000);
+  const copyToClipboard = async () => {
+    const ok = await copyTextToClipboard(samplePermanentId);
+    if (ok) {
+      setCopiedHash(true);
+      setTimeout(() => setCopiedHash(false), 2000);
+    }
   };
 
   return (
@@ -65,27 +59,26 @@ export default function HeroSection({ onOpenDemoModal, onOpenWhitepaperModal }: 
           {/* Left Column: Hero Content & Search */}
           <div className="lg:col-span-7 space-y-6 text-center lg:text-left">
             
-            {/* Top Pill Badge */}
+            {/* Top Pill Badge matching PRD */}
             <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-950/40 px-3.5 py-1.5 text-xs font-semibold text-emerald-400 backdrop-blur-md shadow-inner shadow-emerald-500/10">
               <Sparkles className="h-3.5 w-3.5 text-emerald-400 animate-pulse" />
-              <span className="hidden sm:inline tracking-wider uppercase text-[11px]">WELCOME TO THE FUTURE OF TRUST</span>
-              <span className="sm:hidden tracking-wider uppercase text-[11px]">SECURE END-TO-END CREDENTIALING</span>
+              <span className="tracking-wider uppercase text-[11px]">SECURE ACADEMIC CREDENTIALS</span>
             </div>
 
-            {/* Main Headline */}
+            {/* Main Headline matching PRD Section 24 */}
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-white leading-[1.15]">
-              Authoritative academic credentials. <br className="hidden sm:inline" />
-              <span className="text-gradient-emerald">Anchored on-chain.</span>
+              Verify academic credentials <br className="hidden sm:inline" />
+              <span className="text-gradient-emerald">without the paperwork.</span>
             </h1>
 
-            {/* Subtitle */}
+            {/* Subtitle matching PRD */}
             <p className="max-w-2xl mx-auto lg:mx-0 text-base sm:text-lg text-slate-300 leading-relaxed">
-              Eliminate credential fraud and slow manual background checks instantly. 
-              TrustChain allows institutions to issue cryptographically signed, tamper-proof degrees, 
-              transcripts, and professional licenses verified by employers in seconds.
+              Institution-issued, digitally signed credentials with tamper-evident verification.
+              Eliminate diploma forgery and manual delays with Ed25519 digital signatures, 
+              permanent QR codes, and linear hash chain integrity checks.
             </p>
 
-            {/* Interactive Live Ledger Search Bar */}
+            {/* Live Credential Search Bar */}
             <div className="pt-2 max-w-xl mx-auto lg:mx-0">
               <form onSubmit={handleSearch} className="relative flex items-center">
                 <div className="relative w-full">
@@ -95,166 +88,163 @@ export default function HeroSection({ onOpenDemoModal, onOpenWhitepaperModal }: 
                   <input
                     type="text"
                     value={searchQuery}
-                    onChange={(e) => {
-                      setSearchQuery(e.target.value);
-                      if (searchResultState !== "idle") setSearchResultState("idle");
-                    }}
-                    placeholder="Verify Anchor Hash, Student ID or Name (e.g. 0x8f2d...)"
-                    className="w-full pl-10 pr-32 py-3.5 text-sm rounded-xl glass-panel text-white placeholder-slate-400 border border-slate-700/60 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 shadow-xl transition-all"
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Enter Credential ID (e.g. CRED-7F83A91 or CRED-9E24B10)"
+                    className="w-full pl-10 pr-36 py-3.5 text-sm rounded-xl glass-panel text-white placeholder-slate-400 border border-slate-700 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 font-mono shadow-xl transition-all"
                   />
                   <button
                     type="submit"
                     className="absolute right-1.5 top-1.5 bottom-1.5 px-4 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs transition-colors flex items-center gap-1.5 cursor-pointer shadow-md shadow-emerald-500/20"
                   >
-                    {searchResultState === "searching" ? (
-                      <span className="animate-spin h-3.5 w-3.5 border-2 border-slate-950 border-t-transparent rounded-full" />
-                    ) : (
-                      <>
-                        <span>Search</span>
-                        <Search className="h-3 w-3" />
-                      </>
-                    )}
+                    <span>Verify ID</span>
+                    <ArrowRight className="h-3.5 w-3.5" />
                   </button>
                 </div>
               </form>
 
-              {/* Search Result Feedback */}
-              {searchResultState === "found" && (
-                <div className="mt-3 p-3 rounded-lg bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 text-xs flex items-center justify-between animate-fadeIn">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-400 flex-shrink-0" />
-                    <span><strong>Record Found:</strong> Dr. Evelyn Vance — PhD Computer Science (Valid & Anchored)</span>
-                  </div>
-                  <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-mono">0x8f2d...c34b</span>
-                </div>
-              )}
-              {searchResultState === "not_found" && (
-                <div className="mt-3 p-3 rounded-lg bg-rose-950/60 border border-rose-500/40 text-rose-300 text-xs flex items-center gap-2">
-                  <span>No exact anchor match for &quot;{searchQuery}&quot;. Try searching &quot;0x8f2d&quot; or &quot;Evelyn&quot;.</span>
-                </div>
-              )}
+              {/* Quick sample link */}
+              <div className="mt-2.5 flex items-center gap-2 text-xs text-slate-400">
+                <span>Try sample IDs:</span>
+                <Link
+                  href="/verify?id=CRED-7F83A91"
+                  className="font-mono text-emerald-400 hover:underline"
+                >
+                  CRED-7F83A91 (Rahul Sharma)
+                </Link>
+                <span>•</span>
+                <Link
+                  href="/verify?id=CRED-9E24B10"
+                  className="font-mono text-emerald-400 hover:underline"
+                >
+                  CRED-9E24B10 (Dr. Evelyn)
+                </Link>
+              </div>
             </div>
 
-            {/* CTAs */}
+            {/* CTAs matching PRD Section 24: [ Verify a Credential ] [ Institution Login ] */}
             <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-2">
-              <button
-                onClick={onOpenDemoModal}
+              <Link
+                href="/verify"
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-6 py-3.5 text-base font-bold text-slate-950 shadow-xl shadow-emerald-500/25 transition-all duration-200 hover:from-emerald-400 hover:to-teal-400 hover:scale-[1.02] active:scale-95 cursor-pointer"
               >
-                <Building2 className="h-5 w-5" />
-                <span>Enterprise Portal Launch</span>
-              </button>
+                <Search className="h-5 w-5" />
+                <span>Verify a Credential</span>
+              </Link>
 
-              <button
-                onClick={onOpenWhitepaperModal}
+              <Link
+                href="/login?role=INSTITUTE"
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl glass-panel glass-panel-hover px-6 py-3.5 text-base font-semibold text-slate-200 hover:text-white border border-slate-700/80 cursor-pointer"
               >
-                <FileCode2 className="h-5 w-5 text-emerald-400" />
-                <span>Read Technical Whitepaper</span>
-              </button>
+                <Building2 className="h-5 w-5 text-emerald-400" />
+                <span>Institution Login</span>
+              </Link>
             </div>
 
           </div>
 
-          {/* Right Column: Cryptographic Proof Preview Card */}
+          {/* Right Column: Realistic Academic Certificate Preview Card (PRD Section 24) */}
           <div className="lg:col-span-5 relative">
             
             {/* Glowing Backdrop Border */}
-            <div className="absolute -inset-1 rounded-3xl bg-gradient-to-r from-emerald-500/30 to-cyan-500/30 blur-lg opacity-70 group-hover:opacity-100 transition duration-1000"></div>
+            <div className="absolute -inset-1 rounded-3xl bg-gradient-to-r from-amber-500/30 via-emerald-500/30 to-cyan-500/30 blur-lg opacity-70 pointer-events-none group-hover:opacity-100 transition duration-1000"></div>
 
-            <div className="relative rounded-2xl glass-panel p-6 sm:p-8 space-y-6 border border-emerald-500/30 bg-slate-950/90 shadow-2xl">
+            <div className="relative rounded-3xl certificate-frame p-6 sm:p-7 space-y-5 border border-amber-500/40 bg-slate-950/95 shadow-2xl text-left">
               
               {/* Card Header */}
-              <div className="flex items-center justify-between border-b border-white/10 pb-4">
-                <div className="flex items-center gap-2">
-                  <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                    <ShieldCheck className="h-5 w-5" />
+              <div className="flex items-center justify-between border-b border-amber-500/20 pb-3.5">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                    <Award className="h-5 w-5" />
                   </div>
                   <div>
-                    <h3 className="text-xs uppercase tracking-wider font-bold text-slate-400">Cryptographic Proof</h3>
-                    <p className="text-sm font-semibold text-white">Stanford University Alliance</p>
+                    <span className="text-[10px] uppercase tracking-wider font-bold text-amber-400">OFFICIAL BLOCKCERT PROOF</span>
+                    <p className="text-xs font-extrabold text-white">Stanford University Alliance</p>
                   </div>
                 </div>
                 
                 {/* Live Status Badge */}
-                <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-400 border border-emerald-500/30 animate-pulse-green">
-                  <span className="h-2 w-2 rounded-full bg-emerald-400"></span>
-                  <span>Ledger Anchored</span>
+                <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-bold text-emerald-400 border border-emerald-500/30 animate-pulse-green">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  <span>ACTIVE / VERIFIED</span>
                 </div>
               </div>
 
-              {/* Credential Data Fields */}
-              <div className="space-y-4 text-left">
+              {/* Credential Content */}
+              <div className="space-y-3">
                 <div>
-                  <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Graduate Student</span>
-                  <div className="text-xl font-bold text-white mt-0.5">Dr. Evelyn Vance</div>
+                  <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Conferred Graduate</span>
+                  <div className="text-xl font-extrabold text-white text-gradient-gold">Rahul Sharma</div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Degree Issued</span>
-                    <div className="text-sm font-semibold text-slate-200 mt-0.5">Doctor of Philosophy</div>
+                    <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Degree Conferred</span>
+                    <div className="text-xs font-bold text-slate-200 mt-0.5">Bachelor of Technology</div>
                   </div>
                   <div>
-                    <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Graduation Class</span>
-                    <div className="text-sm font-semibold text-slate-200 mt-0.5">Class of 2026</div>
+                    <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Cumulative CGPA</span>
+                    <div className="text-xs font-bold text-amber-300 mt-0.5">8.2 / 10.0 (Distinction)</div>
                   </div>
                 </div>
 
                 <div>
-                  <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Specialization</span>
-                  <div className="text-sm font-semibold text-emerald-300 mt-0.5">
-                    Computer Science &amp; Cryptographic Architecture
+                  <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Department / Specialization</span>
+                  <div className="text-xs font-medium text-emerald-300 mt-0.5">
+                    Computer Science &amp; Engineering (Distributed Systems)
                   </div>
                 </div>
 
-                {/* Blockchain Hash Box */}
-                <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 space-y-1">
-                  <div className="flex items-center justify-between text-[11px] text-slate-400">
-                    <span className="flex items-center gap-1">
+                {/* Permanent Credential ID & SHA-256 Box */}
+                <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-800 space-y-1.5 font-mono">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-slate-400 flex items-center gap-1">
                       <Lock className="h-3 w-3 text-emerald-400" />
-                      <span>Ethereum L2 Anchor ID</span>
+                      <span>Permanent ID</span>
                     </span>
                     <button
+                      type="button"
                       onClick={copyToClipboard}
-                      className="hover:text-emerald-400 transition-colors flex items-center gap-1 text-[10px] font-mono cursor-pointer"
+                      className="hover:text-emerald-400 transition-colors flex items-center gap-1 text-[10px] cursor-pointer"
                     >
                       {copiedHash ? (
                         <span className="text-emerald-400 flex items-center gap-1">
-                          <Check className="h-3 w-3" /> Copied!
+                          <Check className="h-3 w-3" /> Copied
                         </span>
                       ) : (
-                        <span className="flex items-center gap-1">
-                          <Copy className="h-3 w-3" /> Copy Hash
+                        <span className="flex items-center gap-1 text-slate-400">
+                          <Copy className="h-3 w-3" /> Copy
                         </span>
                       )}
                     </button>
                   </div>
-                  <div className="font-mono text-xs text-emerald-400/90 break-all select-all font-semibold">
-                    {sampleAnchorId}
+                  <div className="text-xs text-amber-300 font-extrabold">
+                    {samplePermanentId}
+                  </div>
+                  <div className="text-[10px] text-slate-400 break-all pt-1 border-t border-slate-800/60">
+                    SHA-256: <span className="text-emerald-400/90">{formatHash(sampleHash, 10)}</span>
                   </div>
                 </div>
               </div>
 
-              {/* Card Footer: Verification QR Code & CTA */}
-              <div className="pt-2 border-t border-white/10 flex items-center justify-between">
+              {/* Card Footer: Permanent QR Code & Instant Verify CTA */}
+              <div className="pt-2 border-t border-amber-500/20 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-white text-slate-950 shadow-md">
+                  <div className="p-1.5 rounded-lg bg-white text-slate-950 shadow-md">
                     <QrCode className="h-7 w-7" />
                   </div>
                   <div className="text-xs">
-                    <div className="font-bold text-white">Live Employer Verification</div>
-                    <div className="text-slate-400 text-[11px]">Scan QR or query contract</div>
+                    <div className="font-bold text-white">Permanent QR Seal</div>
+                    <div className="text-slate-400 text-[10px]">Unchanged across version revisions</div>
                   </div>
                 </div>
 
-                <button
-                  onClick={onOpenDemoModal}
-                  className="p-2 rounded-xl glass-panel hover:bg-emerald-500/20 text-emerald-400 transition-colors cursor-pointer"
-                  title="Verify Record"
+                <Link
+                  href={`/verify?id=${samplePermanentId}`}
+                  className="p-2.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 transition-colors cursor-pointer"
+                  title="Run Full 4-Point Cryptographic Check"
                 >
-                  <ExternalLink className="h-5 w-5" />
-                </button>
+                  <ExternalLink className="h-4 w-4" />
+                </Link>
               </div>
 
             </div>
