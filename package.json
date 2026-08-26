@@ -2,6 +2,9 @@
   "name": "blockcert",
   "version": "1.0.0",
   "private": true,
+  "engines": {
+    "node": ">=20"
+  },
   "description": "Blockchain-Based Academic Credential Verification Platform",
   "scripts": {
     "dev": "next dev",
