@@ -1,18 +1,22 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import { 
   Building2, 
   ShieldCheck, 
   Layers, 
-  FileSpreadsheet, 
   CheckCircle2, 
   Clock, 
   Plus, 
   RefreshCw,
   Search,
   Filter,
-  Check
+  Check,
+  ExternalLink,
+  Lock,
+  ArrowRight,
+  Sparkles
 } from "lucide-react";
 
 interface RecordItem {
@@ -20,32 +24,36 @@ interface RecordItem {
   name: string;
   degree: string;
   hash: string;
-  status: "ANCHORED" | "PROCESSING" | "REVOKED";
+  version: number;
+  status: "ACTIVE" | "PROCESSING" | "REVOKED";
   timestamp: string;
 }
 
 const initialRecords: RecordItem[] = [
   {
-    id: "REC-2026-001",
-    name: "Jessica Archer",
-    degree: "B.Sc. Computer Science",
-    hash: "0xfa129b8c32d4e5f67c8",
-    status: "ANCHORED",
+    id: "CRED-7F83A91",
+    name: "Rahul Sharma",
+    degree: "B.Tech Computer Science",
+    hash: "a71f92e48b11c97a5482e987c61d5203",
+    version: 1,
+    status: "ACTIVE",
     timestamp: "2 mins ago"
   },
   {
-    id: "REC-2026-002",
+    id: "CRED-9E24B10",
     name: "Dr. Evelyn Vance",
-    degree: "PhD Mathematics",
-    hash: "0x8f2dc34b91a4c9b34bf",
-    status: "ANCHORED",
-    timestamp: "12 mins ago"
+    degree: "PhD Computer Science & Cryptography",
+    hash: "f3c8091a45b76e820194857620194857",
+    version: 1,
+    status: "ACTIVE",
+    timestamp: "15 mins ago"
   },
   {
-    id: "REC-2026-003",
-    name: "Robert Liang",
-    degree: "MBA Finance",
-    hash: "0xea901af56b7890c1f12d",
+    id: "CRED-4D88A12",
+    name: "Ananya Patel",
+    degree: "M.Sc. Artificial Intelligence",
+    hash: "0xea901af56b7890c1f12d849201948571",
+    version: 1,
     status: "PROCESSING",
     timestamp: "Just now"
   }
@@ -53,9 +61,9 @@ const initialRecords: RecordItem[] = [
 
 export default function RegistrarDashboard() {
   const [records, setRecords] = useState<RecordItem[]>(initialRecords);
-  const [filter, setFilter] = useState<"ALL" | "ANCHORED" | "PROCESSING">("ALL");
-  const [isBatchSigning, setIsBatchSigning] = useState(false);
-  const [batchSignedSuccess, setBatchSignedSuccess] = useState(false);
+  const [filter, setFilter] = useState<"ALL" | "ACTIVE" | "PROCESSING">("ALL");
+  const [isSigning, setIsSigning] = useState(false);
+  const [signedSuccess, setSignedSuccess] = useState(false);
   const [newStudentName, setNewStudentName] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
 
@@ -65,24 +73,25 @@ export default function RegistrarDashboard() {
   });
 
   const handleBatchSign = () => {
-    setIsBatchSigning(true);
+    setIsSigning(true);
     setTimeout(() => {
-      setRecords(prev => prev.map(r => ({ ...r, status: "ANCHORED" as const })));
-      setIsBatchSigning(false);
-      setBatchSignedSuccess(true);
-      setTimeout(() => setBatchSignedSuccess(false), 3000);
-    }, 1200);
+      setRecords(prev => prev.map(r => ({ ...r, status: "ACTIVE" as const })));
+      setIsSigning(false);
+      setSignedSuccess(true);
+      setTimeout(() => setSignedSuccess(false), 3000);
+    }, 1000);
   };
 
   const handleAddRecord = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newStudentName.trim()) return;
+    const name = newStudentName.trim() || "New Graduate Recipient";
 
     const newRec: RecordItem = {
-      id: `REC-2026-00${records.length + 1}`,
-      name: newStudentName,
-      degree: "M.Sc. Data Science & AI",
-      hash: `0x${Math.random().toString(16).substring(2, 10)}...${Math.random().toString(16).substring(2, 6)}`,
+      id: `CRED-${Math.random().toString(16).substring(2, 9).toUpperCase()}`,
+      name: name,
+      degree: "B.Tech Electrical & Computer Eng",
+      hash: `bc${Math.random().toString(16).substring(2, 18)}`,
+      version: 1,
       status: "PROCESSING",
       timestamp: "Just now"
     };
@@ -94,54 +103,41 @@ export default function RegistrarDashboard() {
 
   return (
     <section id="dashboard" className="py-20 bg-slate-950 relative overflow-hidden">
-      
       {/* Background Glow */}
       <div className="absolute top-1/2 left-0 w-96 h-96 bg-emerald-500/5 rounded-full blur-[150px] pointer-events-none" />
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 relative z-10">
         
         {/* Section Header */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
-          <div className="space-y-3 max-w-2xl text-left">
-            <div className="inline-flex items-center gap-2 rounded-md bg-emerald-500/10 border border-emerald-500/30 px-3 py-1 text-xs font-bold text-emerald-400">
-              <Building2 className="h-3.5 w-3.5" />
-              <span className="uppercase tracking-wider">ISSUER ARCHITECTURE</span>
-            </div>
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
-              Command center for institutional registrars
-            </h2>
-            <p className="text-slate-300 text-sm sm:text-base leading-relaxed">
-              Streamline transcript issuance with batch signing. Upload verified CSV records, 
-              instantly compute cryptographic trees, and sign thousands of secure PDFs simultaneously 
-              with your hardware security modules (HSM).
-            </p>
+        <div className="text-center space-y-4 max-w-3xl mx-auto mb-12">
+          <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 border border-emerald-500/30 px-3.5 py-1.5 text-xs font-bold text-emerald-400">
+            <Sparkles className="h-3.5 w-3.5" />
+            <span className="uppercase tracking-wider">LIVE REGISTRAR COMMAND CENTER</span>
           </div>
-
-          {/* Compliance Badge */}
-          <div className="inline-flex items-center gap-2.5 rounded-xl glass-panel p-3.5 border border-emerald-500/30 bg-emerald-950/20 text-emerald-300 text-xs font-semibold self-start md:self-auto">
-            <ShieldCheck className="h-5 w-5 text-emerald-400 flex-shrink-0" />
-            <div>
-              <div className="font-bold text-white">FERPA &amp; GDPR Compliant</div>
-              <div className="text-[11px] text-emerald-400/80">Decentralized Zero-Knowledge Verification</div>
-            </div>
-          </div>
+          <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+            Academic Authority Issuance Engine
+          </h2>
+          <p className="text-slate-300 text-sm sm:text-base leading-relaxed">
+            Stanford University Registrar interactive terminal. Issue verifiable credentials, batch sign event blocks via Ed25519, and append state changes to the tamper-evident hash chain.
+          </p>
         </div>
 
-        {/* Command Center Dashboard Window */}
-        <div className="rounded-2xl glass-panel border border-white/10 overflow-hidden shadow-2xl bg-slate-900/90">
+        {/* Interactive Dashboard Container */}
+        <div className="rounded-3xl glass-panel border border-white/10 shadow-2xl bg-slate-900/90 overflow-hidden text-left">
           
-          {/* Dashboard Window Header Bar */}
-          <div className="bg-slate-950 px-6 py-4 border-b border-white/10 flex flex-wrap items-center justify-between gap-4">
+          {/* Dashboard Header Bar */}
+          <div className="p-4 sm:p-6 bg-slate-950/60 border-b border-white/10 flex flex-col md:flex-row md:items-center justify-between gap-4">
             
-            {/* Title & Controls */}
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-1.5">
-                <span className="h-3 w-3 rounded-full bg-rose-500/80"></span>
-                <span className="h-3 w-3 rounded-full bg-amber-500/80"></span>
-                <span className="h-3 w-3 rounded-full bg-emerald-500/80"></span>
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                <Building2 className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-extrabold text-white">Institutional Registrar Console</h3>
+                <p className="text-xs text-slate-400">Ed25519 Authority Key: STANFORD-AA-KEY-01</p>
               </div>
               <span className="text-xs font-mono font-semibold text-slate-400 border-l border-slate-800 pl-4">
-                Registrar Node v4.2 · Stanford Alliance
+                BlockCert Registrar Node · Stanford University Alliance
               </span>
             </div>
 
@@ -150,13 +146,14 @@ export default function RegistrarDashboard() {
               
               {/* Filter Tabs */}
               <div className="inline-flex rounded-lg bg-slate-950 p-1 border border-slate-800 text-xs">
-                {(["ALL", "ANCHORED", "PROCESSING"] as const).map(tab => (
+                {(["ALL", "ACTIVE", "PROCESSING"] as const).map(tab => (
                   <button
                     key={tab}
+                    type="button"
                     onClick={() => setFilter(tab)}
                     className={`px-3 py-1 rounded-md font-semibold transition-all cursor-pointer ${
                       filter === tab
-                        ? "bg-emerald-500 text-slate-950 shadow-sm"
+                        ? "bg-emerald-500 text-slate-950 shadow-sm font-bold"
                         : "text-slate-400 hover:text-white"
                     }`}
                   >
@@ -167,33 +164,35 @@ export default function RegistrarDashboard() {
 
               {/* Add Record Trigger */}
               <button
+                type="button"
                 onClick={() => setShowAddForm(!showAddForm)}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-colors cursor-pointer border border-slate-700"
               >
                 <Plus className="h-3.5 w-3.5 text-emerald-400" />
-                <span>Add Record</span>
+                <span>Issue Single</span>
               </button>
 
-              {/* Batch Sign Action Simulator */}
+              {/* Sign Action Simulator */}
               <button
+                type="button"
                 onClick={handleBatchSign}
-                disabled={isBatchSigning}
+                disabled={isSigning}
                 className="inline-flex items-center gap-2 px-4 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold transition-all shadow-md shadow-emerald-500/20 cursor-pointer disabled:opacity-50"
               >
-                {isBatchSigning ? (
+                {isSigning ? (
                   <>
                     <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                    <span>Signing On-Chain...</span>
+                    <span>Signing Ed25519...</span>
                   </>
-                ) : batchSignedSuccess ? (
+                ) : signedSuccess ? (
                   <>
                     <Check className="h-3.5 w-3.5" />
-                    <span>Batch Signed!</span>
+                    <span>Signed On-Chain!</span>
                   </>
                 ) : (
                   <>
-                    <Layers className="h-3.5 w-3.5" />
-                    <span>Batch Sign HSM</span>
+                    <Lock className="h-3.5 w-3.5" />
+                    <span>Sign Hash Chain</span>
                   </>
                 )}
               </button>
@@ -208,7 +207,7 @@ export default function RegistrarDashboard() {
               <form onSubmit={handleAddRecord} className="flex flex-col sm:flex-row items-center gap-3">
                 <input
                   type="text"
-                  placeholder="Enter Student Name (e.g. Alex Morgan)"
+                  placeholder="Enter Student Name (e.g. Rahul Sharma)"
                   value={newStudentName}
                   onChange={(e) => setNewStudentName(e.target.value)}
                   className="w-full sm:w-80 px-3.5 py-2 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
@@ -217,12 +216,12 @@ export default function RegistrarDashboard() {
                   type="submit"
                   className="w-full sm:w-auto px-4 py-2 rounded-lg bg-emerald-500 text-slate-950 text-xs font-bold hover:bg-emerald-400 cursor-pointer"
                 >
-                  Issue &amp; Queue Record
+                  Generate &amp; Sign Credential
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowAddForm(false)}
-                  className="text-xs text-slate-400 hover:text-white px-2 py-1"
+                  className="text-xs text-slate-400 hover:text-white px-2 py-1 cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -230,19 +229,18 @@ export default function RegistrarDashboard() {
             </div>
           )}
 
-          {/* Desktop Recipient Table & Mobile Stacked Cards */}
+          {/* Recipient Table */}
           <div className="p-4 sm:p-6">
-            
-            {/* Desktop Table View (Hidden on mobile) */}
-            <div className="hidden md:block overflow-x-auto">
+            <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="border-b border-white/10 text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                    <th className="py-3 px-4">Recipient Graduate</th>
-                    <th className="py-3 px-4">Academic Degree</th>
-                    <th className="py-3 px-4">On-Chain Anchor Hash</th>
+                    <th className="py-3 px-4">Graduate Recipient</th>
+                    <th className="py-3 px-4">Permanent ID</th>
+                    <th className="py-3 px-4">Degree</th>
+                    <th className="py-3 px-4">SHA-256 Digest</th>
                     <th className="py-3 px-4 text-center">Status</th>
-                    <th className="py-3 px-4 text-right">Time</th>
+                    <th className="py-3 px-4 text-right">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5 text-sm font-medium">
@@ -254,16 +252,17 @@ export default function RegistrarDashboard() {
                         </div>
                         <div>
                           <div>{row.name}</div>
-                          <div className="text-[11px] font-mono text-slate-500">{row.id}</div>
+                          <div className="text-[11px] text-slate-400 font-normal">v{row.version}.0 Active</div>
                         </div>
                       </td>
-                      <td className="py-4 px-4 text-slate-300 font-semibold">{row.degree}</td>
-                      <td className="py-4 px-4 font-mono text-xs text-emerald-400/90">{row.hash}</td>
+                      <td className="py-4 px-4 font-mono text-xs text-amber-300 font-bold">{row.id}</td>
+                      <td className="py-4 px-4 text-slate-300 text-xs font-semibold">{row.degree}</td>
+                      <td className="py-4 px-4 font-mono text-xs text-emerald-400/90">{row.hash}...</td>
                       <td className="py-4 px-4 text-center">
-                        {row.status === "ANCHORED" ? (
+                        {row.status === "ACTIVE" ? (
                           <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-400 border border-emerald-500/30">
                             <CheckCircle2 className="h-3.5 w-3.5" />
-                            <span>ANCHORED</span>
+                            <span>ACTIVE</span>
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 px-3 py-1 text-xs font-bold text-amber-400 border border-amber-500/30 animate-pulse">
@@ -272,44 +271,20 @@ export default function RegistrarDashboard() {
                           </span>
                         )}
                       </td>
-                      <td className="py-4 px-4 text-right text-xs text-slate-400">{row.timestamp}</td>
+                      <td className="py-4 px-4 text-right">
+                        <Link
+                          href={`/verify?id=${row.id}`}
+                          className="inline-flex items-center gap-1 text-xs text-emerald-400 hover:underline font-semibold"
+                        >
+                          <span>Verify</span>
+                          <ExternalLink className="h-3 w-3" />
+                        </Link>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-
-            {/* Mobile Stacked Card View (Visible on mobile) */}
-            <div className="md:hidden space-y-4">
-              {filteredRecords.map((row) => (
-                <div
-                  key={row.id}
-                  className="rounded-xl glass-panel p-4 border border-white/10 bg-slate-950/60 space-y-3"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="font-bold text-white text-base">{row.name}</div>
-                    {row.status === "ANCHORED" ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-bold text-emerald-400 border border-emerald-500/30">
-                        <CheckCircle2 className="h-3 w-3" />
-                        <span>ANCHORED</span>
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-bold text-amber-400 border border-amber-500/30">
-                        <Clock className="h-3 w-3" />
-                        <span>PROCESSING</span>
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="text-xs text-slate-300 font-semibold">{row.degree}</div>
-                  
-                  <div className="p-2.5 rounded-lg bg-slate-900 font-mono text-[11px] text-emerald-400/90 break-all border border-slate-800">
-                    {row.hash}
-                  </div>
-                </div>
-              ))}
-            </div>
-
           </div>
 
         </div>

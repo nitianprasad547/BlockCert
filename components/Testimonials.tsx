@@ -6,26 +6,25 @@ import { Quote, Building, Award, Star } from "lucide-react";
 export default function Testimonials() {
   const testimonials = [
     {
-      quote: "TrustChain saved our admissions office thousands of hours in verifying foreign credentials. The tamper-proof ledger gives us complete peace of mind.",
+      quote: "BlockCert has transformed our university records office. Using Ed25519 signatures and the permanent QR code, students share verified credentials in seconds without administrative overhead.",
       name: "Dr. Alistair Vance",
       title: "University Registrar, Stanford Alliance",
       institution: "Stanford Alliance",
-      badge: "45k+ Degrees Anchored",
+      badge: "Cryptographic Issuer",
       rating: 5,
     },
     {
-      quote: "Employers frequently tell us how easy our graduation confirmation process is now. Instant QR validation has entirely eliminated background check delays.",
+      quote: "Our recruiting leads instantly verify candidates using QR codes. The built-in 4-point cryptographic check completely eliminates diploma fraud and background verification delays.",
       name: "Sarah Jenkins",
-      title: "Director of Academic Records, G-10 Consortium",
-      institution: "G-10 Consortium",
-      badge: "120k+ Records Verified",
+      title: "Head of Academic Credentialing, Tech Talent Consortium",
+      institution: "Tech Talent Consortium",
+      badge: "Employer Verification Partner",
       rating: 5,
     },
   ];
 
   return (
     <section id="testimonials" className="py-20 bg-slate-950 relative overflow-hidden">
-      
       {/* Background Gradient Circle */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[350px] bg-cyan-500/5 rounded-full blur-[170px] pointer-events-none" />
 
@@ -35,13 +34,13 @@ export default function Testimonials() {
         <div className="text-center space-y-3 max-w-2xl mx-auto mb-16">
           <div className="inline-flex items-center gap-2 rounded-md bg-amber-500/10 border border-amber-500/30 px-3 py-1 text-xs font-bold text-amber-400">
             <Award className="h-3.5 w-3.5" />
-            <span className="uppercase tracking-wider">REGISTRAR TESTIMONIALS</span>
+            <span className="uppercase tracking-wider">ACADEMIC ECOSYSTEM TESTIMONIALS</span>
           </div>
           <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
-            Why major universities trust our technology
+            Built for universities, students, and employers
           </h2>
           <p className="text-slate-400 text-sm sm:text-base">
-            Trusted by higher education leaders, licensing boards, and accreditation agencies worldwide.
+            The institution issues. The student owns and shares. The employer independently verifies.
           </p>
         </div>
 
@@ -50,7 +49,7 @@ export default function Testimonials() {
           {testimonials.map((t, idx) => (
             <div
               key={idx}
-              className="relative rounded-2xl glass-panel p-8 space-y-6 border border-white/10 bg-slate-900/80 glass-panel-hover text-left flex flex-col justify-between"
+              className="relative rounded-3xl glass-panel p-8 space-y-6 border border-white/10 bg-slate-900/80 glass-panel-hover text-left flex flex-col justify-between"
             >
               {/* Top Quote Icon & Stars */}
               <div className="flex items-center justify-between">

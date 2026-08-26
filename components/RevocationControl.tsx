@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import { 
   ShieldAlert, 
   CheckCircle2, 
@@ -9,11 +10,12 @@ import {
   RotateCcw, 
   ArrowRight,
   Lock,
-  Globe
+  Globe,
+  Layers
 } from "lucide-react";
 
 interface RevocationControlProps {
-  onOpenDemoModal: () => void;
+  onOpenDemoModal?: () => void;
 }
 
 export default function RevocationControl({ onOpenDemoModal }: RevocationControlProps) {
@@ -25,12 +27,11 @@ export default function RevocationControl({ onOpenDemoModal }: RevocationControl
     setTimeout(() => {
       setIsRevoked(!isRevoked);
       setIsSimulating(false);
-    }, 600);
+    }, 500);
   };
 
   return (
     <section id="revocation" className="py-20 bg-slate-950/60 relative overflow-hidden border-t border-white/5">
-      
       {/* Background Glow */}
       <div className="absolute bottom-0 right-0 w-[500px] h-[300px] bg-rose-500/5 rounded-full blur-[160px] pointer-events-none" />
 
@@ -41,7 +42,6 @@ export default function RevocationControl({ onOpenDemoModal }: RevocationControl
           {/* Left Column: Interactive Revocation Simulator Card */}
           <div className="lg:col-span-6 space-y-6">
             
-            {/* Glowing Backdrop Border */}
             <div className={`relative rounded-3xl glass-panel p-6 sm:p-8 space-y-6 border transition-all duration-500 shadow-2xl bg-slate-900/90 ${
               isRevoked ? "border-rose-500/40 shadow-rose-950/20" : "border-emerald-500/40 shadow-emerald-950/20"
             }`}>
@@ -57,13 +57,14 @@ export default function RevocationControl({ onOpenDemoModal }: RevocationControl
                     {isRevoked ? <ShieldAlert className="h-6 w-6" /> : <CheckCircle2 className="h-6 w-6" />}
                   </div>
                   <div className="text-left">
-                    <h3 className="text-lg font-bold text-white">Revocation &amp; Re-issuance</h3>
-                    <p className="text-xs text-slate-400">Consensus node instant updates</p>
+                    <h3 className="text-lg font-bold text-white">Revocation &amp; Re-issuance Engine</h3>
+                    <p className="text-xs text-slate-400">Single-node hash chain event propagation</p>
                   </div>
                 </div>
 
                 {/* Interactive State Switch Button */}
                 <button
+                  type="button"
                   onClick={toggleRevocationState}
                   disabled={isSimulating}
                   className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer border ${
@@ -73,19 +74,20 @@ export default function RevocationControl({ onOpenDemoModal }: RevocationControl
                   }`}
                 >
                   <RotateCcw className={`h-3.5 w-3.5 ${isSimulating ? "animate-spin" : ""}`} />
-                  <span>{isRevoked ? "Simulate Re-issue" : "Simulate Revoke"}</span>
+                  <span>{isRevoked ? "Simulate Re-issue (v2 ACTIVE)" : "Simulate Revocation Event"}</span>
                 </button>
               </div>
 
               {/* Card Body Text */}
               <p className="text-sm text-slate-300 leading-relaxed text-left">
-                Should credentials need revocation due to ethical violations, corrections, or updates, 
-                registrars can sign a revocation transaction. The verification portal instantly flags 
-                the certificate as &quot;INVALIDATED&quot; globally across all validation queries.
+                When credentials require revocation due to disciplinary action or replacement, registrars 
+                record a signed <code className="text-emerald-400 font-mono text-xs">REVOKE</code> block in 
+                the hash chain. The permanent QR code and Credential ID dynamically resolve to 
+                <strong className="text-rose-400"> REVOKED</strong> across all employer queries.
               </p>
 
               {/* Dynamic Status Badge Indicator */}
-              <div className={`p-4 rounded-xl border flex items-center justify-between text-xs font-bold transition-all ${
+              <div className={`p-4 rounded-2xl border flex items-center justify-between text-xs font-bold transition-all ${
                 isRevoked
                   ? "bg-rose-950/40 border-rose-500/50 text-rose-300 animate-pulse-red"
                   : "bg-emerald-950/40 border-emerald-500/50 text-emerald-300 animate-pulse-green"
@@ -98,29 +100,29 @@ export default function RevocationControl({ onOpenDemoModal }: RevocationControl
                   )}
                   <div>
                     <div className="font-extrabold uppercase tracking-wider text-xs">
-                      {isRevoked ? "Status: INVALIDATED / REVOKED" : "Status: ACTIVE / VERIFIED"}
+                      {isRevoked ? "Status: REVOKED (Block #3 EVENT)" : "Status: ACTIVE (Block #2 EVENT)"}
                     </div>
                     <div className="text-[11px] font-mono opacity-80 mt-0.5">
                       {isRevoked
-                        ? "Revocation Hash Propagated to Ethereum L2 Nodes"
-                        : "Consensus Confirmed across 1,200+ Nodes"}
+                        ? "Event Type: REVOKE | Digital Signature Confirmed"
+                        : "Event Type: MODIFY | Version 2.0 Supercedes v1.0"}
                     </div>
                   </div>
                 </div>
 
                 <span className="font-mono text-[10px] uppercase px-2 py-1 rounded bg-black/40 border border-white/10">
-                  Block #1948291
+                  {isRevoked ? "Block #3" : "Block #2"}
                 </span>
               </div>
 
               {/* Hash Details Footer */}
               <div className="pt-2 text-left space-y-2 border-t border-white/5">
-                <div className="flex items-center justify-between text-xs text-slate-400">
+                <div className="flex items-center justify-between text-xs text-slate-400 font-mono">
                   <span className="flex items-center gap-1.5">
-                    <Globe className="h-3.5 w-3.5 text-cyan-400" />
-                    <span>Global Consensus Propagation Speed</span>
+                    <Layers className="h-3.5 w-3.5 text-cyan-400" />
+                    <span>Permanent Credential ID</span>
                   </span>
-                  <span className="font-mono font-bold text-white">&lt; 1.2 Seconds</span>
+                  <span className="font-bold text-amber-300">CRED-7F83A91 (Stable across lifecycle)</span>
                 </div>
               </div>
 
@@ -133,17 +135,17 @@ export default function RevocationControl({ onOpenDemoModal }: RevocationControl
             
             <div className="inline-flex items-center gap-2 rounded-md bg-cyan-500/10 border border-cyan-500/30 px-3 py-1 text-xs font-bold text-cyan-400">
               <Cpu className="h-3.5 w-3.5" />
-              <span className="uppercase tracking-wider">REAL-TIME CONSENSUS</span>
+              <span className="uppercase tracking-wider">IMMUTABLE LIFECYCLE AUDITING</span>
             </div>
 
             <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight">
-              Prevent fraudulent degree usage instantly
+              Prevent fraudulent certificate reuse permanently
             </h2>
 
             <p className="text-slate-300 text-sm sm:text-base leading-relaxed">
-              Unlike static PDF files that can be edited or shared post-revocation, TrustChain reads status 
-              directly from blockchain consensus. Employers validation queries dynamically execute live contract 
-              state calls to guarantee authenticity.
+              Unlike static PDF files that can be duplicated or printed after being rescinded, BlockCert reads status 
+              directly from the tamper-evident hash chain. Employer verification queries always execute server-side 
+              status and cryptographic checks in real time.
             </p>
 
             {/* Bullet Highlights */}
@@ -152,25 +154,32 @@ export default function RevocationControl({ onOpenDemoModal }: RevocationControl
                 <div className="p-1 rounded bg-emerald-500/20 text-emerald-400 mt-0.5">
                   <Lock className="h-4 w-4" />
                 </div>
-                <span><strong>Zero Static Vulnerabilities:</strong> Credentials cannot be forged or reused after institution revocation.</span>
+                <span><strong>No Silently Overwritten Records:</strong> Legitimate corrections create Version 2 and preserve Version 1 as SUPERSEDED.</span>
               </div>
               <div className="flex items-start gap-3 text-sm text-slate-200">
                 <div className="p-1 rounded bg-emerald-500/20 text-emerald-400 mt-0.5">
                   <Globe className="h-4 w-4" />
                 </div>
-                <span><strong>Instant Global Sync:</strong> Verification endpoints worldwide receive state updates in under 2 seconds.</span>
+                <span><strong>Permanent QR Continuity:</strong> The student&apos;s physical and digital QR code never needs replacement after legitimate grade modifications.</span>
               </div>
             </div>
 
             {/* Action CTA Button */}
-            <div className="pt-4">
-              <button
-                onClick={onOpenDemoModal}
+            <div className="pt-4 flex items-center gap-3">
+              <Link
+                href="/verify?id=CRED-7F83A91"
                 className="inline-flex items-center gap-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-6 py-3.5 text-base font-bold text-slate-950 shadow-xl shadow-emerald-500/20 hover:from-emerald-400 hover:to-teal-400 transition-all cursor-pointer"
               >
                 <span>Try Verification Portal</span>
                 <ArrowRight className="h-5 w-5" />
-              </button>
+              </Link>
+
+              <Link
+                href="/security"
+                className="inline-flex items-center gap-2 rounded-xl glass-panel px-5 py-3.5 text-sm font-semibold text-slate-300 hover:text-white"
+              >
+                <span>Read Cryptographic Specs</span>
+              </Link>
             </div>
 
           </div>

@@ -4,12 +4,13 @@
   :root {
     --background: #07090e;
     --foreground: #f3f4f6;
-    --card-bg: rgba(15, 23, 42, 0.65);
+    --card-bg: rgba(15, 23, 42, 0.75);
     --card-border: rgba(255, 255, 255, 0.08);
-    --card-border-hover: rgba(16, 185, 129, 0.3);
+    --card-border-hover: rgba(16, 185, 129, 0.35);
     --accent-emerald: #10b981;
     --accent-cyan: #06b6d4;
     --accent-amber: #f59e0b;
+    --accent-gold: #fbbf24;
     --accent-rose: #f43f5e;
   }
 
@@ -24,10 +25,17 @@
 
 /* Custom Glassmorphism & Utility Styles */
 .glass-panel {
-  background: rgba(13, 17, 26, 0.7);
+  background: rgba(13, 17, 26, 0.75);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-panel-gold {
+  background: rgba(20, 18, 14, 0.8);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(245, 158, 11, 0.25);
 }
 
 .glass-panel-hover {
@@ -35,19 +43,26 @@
 }
 
 .glass-panel-hover:hover {
-  background: rgba(18, 24, 38, 0.8);
-  border-color: rgba(16, 185, 129, 0.25);
-  box-shadow: 0 12px 40px -10px rgba(16, 185, 129, 0.15);
+  background: rgba(18, 24, 38, 0.85);
+  border-color: rgba(16, 185, 129, 0.3);
+  box-shadow: 0 12px 40px -10px rgba(16, 185, 129, 0.18);
   transform: translateY(-2px);
 }
 
 .glass-card-amber:hover {
-  border-color: rgba(245, 158, 11, 0.3);
-  box-shadow: 0 12px 40px -10px rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.4);
+  box-shadow: 0 12px 40px -10px rgba(245, 158, 11, 0.2);
+  transform: translateY(-2px);
 }
 
 .text-gradient-emerald {
   background: linear-gradient(135deg, #10b981 0%, #34d399 50%, #06b6d4 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.text-gradient-gold {
+  background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 40%, #fef08a 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -62,6 +77,10 @@
   background: radial-gradient(circle at 50% 0%, rgba(16, 185, 129, 0.12) 0%, rgba(6, 182, 212, 0.05) 35%, rgba(7, 9, 14, 0) 70%);
 }
 
+.bg-radial-gold {
+  background: radial-gradient(circle at 50% 0%, rgba(245, 158, 11, 0.12) 0%, rgba(251, 191, 36, 0.04) 40%, rgba(7, 9, 14, 0) 75%);
+}
+
 .bg-grid-pattern {
   background-size: 32px 32px;
   background-image: 
@@ -69,7 +88,18 @@
     linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
 }
 
-/* Status Pulse Animation */
+/* Certificate Texture & Borders */
+.certificate-frame {
+  background: radial-gradient(ellipse at center, rgba(15, 23, 42, 0.95) 0%, rgba(10, 14, 26, 0.98) 100%);
+  border: 3px double rgba(245, 158, 11, 0.4);
+  box-shadow: 0 0 50px rgba(0, 0, 0, 0.8), inset 0 0 30px rgba(245, 158, 11, 0.05);
+}
+
+.certificate-border-inner {
+  border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
+/* Status Pulse Animations */
 @keyframes pulse-glow {
   0%, 100% {
     opacity: 1;
@@ -92,10 +122,42 @@
   }
 }
 
+@keyframes pulse-glow-amber {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 12px rgba(245, 158, 11, 0.6);
+  }
+  50% {
+    opacity: 0.5;
+    box-shadow: 0 0 4px rgba(245, 158, 11, 0.2);
+  }
+}
+
 .animate-pulse-green {
   animation: pulse-glow 2s infinite ease-in-out;
 }
 
 .animate-pulse-red {
   animation: pulse-glow-red 2s infinite ease-in-out;
+}
+
+.animate-pulse-amber {
+  animation: pulse-glow-amber 2s infinite ease-in-out;
+}
+
+/* Print Styles for Certificate */
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .certificate-frame {
+    background: white !important;
+    border: 3px double #333 !important;
+    color: black !important;
+    box-shadow: none !important;
+  }
 }
