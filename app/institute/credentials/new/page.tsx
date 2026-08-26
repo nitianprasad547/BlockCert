@@ -35,6 +35,7 @@ export default function NewCredentialPage() {
   });
 
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [liveHash, setLiveHash] = useState("");
   const [successCredId, setSuccessCredId] = useState<string | null>(null);
 
@@ -61,13 +62,19 @@ export default function NewCredentialPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.student_name || !formData.student_id_roll) return;
+    if (!formData.student_name.trim() || !formData.student_id_roll.trim()) {
+      setSubmitError("Student name and roll number are required.");
+      return;
+    }
 
     setSubmitting(true);
+    setSubmitError(null);
     try {
       const created = await api.issueCredential(formData);
       setSuccessCredId(created.credential_id);
     } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to issue credential. Please try again.";
+      setSubmitError(message);
       console.error("Issuance error", err);
     } finally {
       setSubmitting(false);
@@ -321,6 +328,12 @@ export default function NewCredentialPage() {
                 <Send className="h-4 w-4" />
                 <span>{submitting ? "Signing On-Chain..." : "Digitally Sign & Issue Credential (v1 ACTIVE)"}</span>
               </button>
+
+              {submitError && (
+                <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-xs text-rose-300">
+                  {submitError}
+                </div>
+              )}
             </form>
           </div>
 

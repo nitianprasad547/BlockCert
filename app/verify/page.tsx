@@ -4,6 +4,7 @@ import React, { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import DemoModal, { ModalType } from "@/components/DemoModal";
 import QRScanner from "@/components/QRScanner";
 import VerificationResult from "@/components/VerificationResult";
 import BlockchainExplorerModal from "@/components/BlockchainExplorerModal";
@@ -19,6 +20,7 @@ function VerifyContent() {
   const [currentId, setCurrentId] = useState<string>(queryId || "");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<VerificationResultType | null>(null);
+  const [verifyError, setVerifyError] = useState<string | null>(null);
   const [isSimulatingTamper, setIsSimulatingTamper] = useState(false);
 
   // Modals
@@ -29,11 +31,15 @@ function VerifyContent() {
     if (!id.trim()) return;
     setLoading(true);
     setCurrentId(id.trim());
+    setVerifyError(null);
     try {
       const res = await api.verifyCredential(id.trim(), simulatedTamper || undefined);
       setResult(res);
       setIsSimulatingTamper(!!simulatedTamper);
     } catch (err) {
+      const message = err instanceof Error ? err.message : "Verification failed. Please try again.";
+      setVerifyError(message);
+      setResult(null);
       console.error("Verification error", err);
     } finally {
       setLoading(false);
@@ -71,6 +77,12 @@ function VerifyContent() {
         />
       </div>
 
+      {verifyError && (
+        <div className="max-w-3xl mx-auto rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-300 text-center">
+          {verifyError}
+        </div>
+      )}
+
       {/* Verification Result Display */}
       {result && (
         <div className="max-w-5xl mx-auto">
@@ -103,15 +115,21 @@ function VerifyContent() {
 }
 
 export default function VerifyPage() {
+  const [activeModal, setActiveModal] = useState<ModalType>(null);
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 selection:bg-emerald-500 selection:text-slate-950 bg-grid-pattern relative flex flex-col justify-between">
-      <Navbar />
+      <Navbar onOpenDemoModal={() => setActiveModal("demo")} />
       <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16 sm:py-20 flex-1">
         <Suspense fallback={<div className="text-center py-20 font-mono text-slate-400">Loading verification portal...</div>}>
           <VerifyContent />
         </Suspense>
       </main>
-      <Footer />
+      <Footer
+        onOpenDemoModal={() => setActiveModal("demo")}
+        onOpenWhitepaperModal={() => setActiveModal("whitepaper")}
+      />
+      <DemoModal type={activeModal} onClose={() => setActiveModal(null)} />
     </div>
   );
 }

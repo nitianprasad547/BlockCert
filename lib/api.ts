@@ -15,13 +15,42 @@ import {
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api";
 
+const API_TIMEOUT_MS = 8000;
+
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     "Content-Type": "application/json",
   },
-  timeout: 1200,
+  timeout: API_TIMEOUT_MS,
 });
+
+let backendAvailableCache: boolean | null = null;
+
+async function isBackendAvailable(): Promise<boolean> {
+  if (backendAvailableCache !== null) {
+    return backendAvailableCache;
+  }
+
+  try {
+    const res = await axios.get(`${API_BASE_URL}/health`, { timeout: 2500 });
+    backendAvailableCache = res.status === 200;
+  } catch {
+    backendAvailableCache = false;
+  }
+
+  return backendAvailableCache;
+}
+
+export function notifyCredentialsChanged(): void {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("blockcert:credentials-updated"));
+  }
+}
+
+export function resetBackendAvailabilityCache(): void {
+  backendAvailableCache = null;
+}
 
 // Attach JWT token if stored
 if (typeof window !== "undefined") {
@@ -267,8 +296,13 @@ export const api = {
   async login(email: string, role: string): Promise<{ user: User; token: string }> {
     try {
       const res = await apiClient.post("/auth/login", { email, role });
-      if (typeof window !== "undefined" && res.data.token) {
-        localStorage.setItem("blockcert_token", res.data.token);
+      if (typeof window !== "undefined") {
+        if (res.data.token) {
+          localStorage.setItem("blockcert_token", res.data.token);
+        }
+        if (res.data.user) {
+          localStorage.setItem("blockcert_current_user", JSON.stringify(res.data.user));
+        }
       }
       return res.data;
     } catch {
@@ -328,30 +362,55 @@ export const api = {
 
   // Credentials
   async getCredentials(): Promise<Credential[]> {
+    const local = getLocalStore<Credential[]>("credentials", initialCredentials);
+    const backendUp = await isBackendAvailable();
+    if (!backendUp) {
+      return local;
+    }
+
     try {
       const res = await apiClient.get("/credentials");
-      return res.data;
+      const remote: Credential[] = Array.isArray(res.data) ? res.data : [];
+      const merged = new Map<string, Credential>();
+      for (const cred of remote) {
+        merged.set(cred.credential_id, cred);
+      }
+      for (const cred of local) {
+        const existing = merged.get(cred.credential_id);
+        if (!existing || new Date(cred.updated_at) > new Date(existing.updated_at)) {
+          merged.set(cred.credential_id, cred);
+        }
+      }
+      return Array.from(merged.values()).sort(
+        (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+      );
     } catch {
-      return getLocalStore<Credential[]>("credentials", initialCredentials);
+      backendAvailableCache = false;
+      return local;
     }
   },
 
   async getCredentialById(id: string): Promise<Credential | null> {
+    const local = getLocalStore<Credential[]>("credentials", initialCredentials);
+    const localMatch =
+      local.find((c) => c.credential_id.toLowerCase() === id.toLowerCase()) || null;
+
+    const backendUp = await isBackendAvailable();
+    if (!backendUp) {
+      return localMatch;
+    }
+
     try {
       const res = await apiClient.get(`/credentials/${id}`);
       return res.data;
     } catch {
-      const creds = getLocalStore<Credential[]>("credentials", initialCredentials);
-      return creds.find((c) => c.credential_id.toLowerCase() === id.toLowerCase()) || null;
+      backendAvailableCache = false;
+      return localMatch;
     }
   },
 
   async issueCredential(data: IssuanceRequest): Promise<Credential> {
-    try {
-      const res = await apiClient.post("/credentials", data);
-      return res.data;
-    } catch {
-      // Local computation
+    const issueLocally = async (): Promise<Credential> => {
       const creds = getLocalStore<Credential[]>("credentials", initialCredentials);
       const blocks = getLocalStore<Block[]>("blocks", initialBlocks);
       const credId = `CRED-${Math.random().toString(16).substring(2, 9).toUpperCase()}`;
@@ -425,15 +484,27 @@ export const api = {
 
       setLocalStore("credentials", [newCred, ...creds]);
       setLocalStore("blocks", [...blocks, newBlock]);
+      notifyCredentialsChanged();
       return newCred;
+    };
+
+    const backendUp = await isBackendAvailable();
+    if (!backendUp) {
+      return issueLocally();
+    }
+
+    try {
+      const res = await apiClient.post("/credentials", data);
+      notifyCredentialsChanged();
+      return res.data;
+    } catch {
+      backendAvailableCache = false;
+      return issueLocally();
     }
   },
 
   async modifyCredential(data: ModificationRequest): Promise<Credential> {
-    try {
-      const res = await apiClient.post(`/credentials/${data.credential_id}/modify`, data);
-      return res.data;
-    } catch {
+    const modifyLocally = async (): Promise<Credential> => {
       const creds = getLocalStore<Credential[]>("credentials", initialCredentials);
       const blocks = getLocalStore<Block[]>("blocks", initialBlocks);
       const credIdx = creds.findIndex((c) => c.credential_id.toLowerCase() === data.credential_id.toLowerCase());
@@ -515,15 +586,27 @@ export const api = {
       creds[credIdx] = updatedCred;
       setLocalStore("credentials", creds);
       setLocalStore("blocks", [...blocks, newBlock]);
+      notifyCredentialsChanged();
       return updatedCred;
+    };
+
+    const backendUp = await isBackendAvailable();
+    if (!backendUp) {
+      return modifyLocally();
+    }
+
+    try {
+      const res = await apiClient.post(`/credentials/${data.credential_id}/modify`, data);
+      notifyCredentialsChanged();
+      return res.data;
+    } catch {
+      backendAvailableCache = false;
+      return modifyLocally();
     }
   },
 
   async revokeCredential(data: RevocationRequest): Promise<Credential> {
-    try {
-      const res = await apiClient.post(`/credentials/${data.credential_id}/revoke`, data);
-      return res.data;
-    } catch {
+    const revokeLocally = async (): Promise<Credential> => {
       const creds = getLocalStore<Credential[]>("credentials", initialCredentials);
       const blocks = getLocalStore<Block[]>("blocks", initialBlocks);
       const credIdx = creds.findIndex((c) => c.credential_id.toLowerCase() === data.credential_id.toLowerCase());
@@ -562,26 +645,29 @@ export const api = {
       creds[credIdx] = updatedCred;
       setLocalStore("credentials", creds);
       setLocalStore("blocks", [...blocks, newBlock]);
+      notifyCredentialsChanged();
       return updatedCred;
+    };
+
+    const backendUp = await isBackendAvailable();
+    if (!backendUp) {
+      return revokeLocally();
+    }
+
+    try {
+      const res = await apiClient.post(`/credentials/${data.credential_id}/revoke`, data);
+      notifyCredentialsChanged();
+      return res.data;
+    } catch {
+      backendAvailableCache = false;
+      return revokeLocally();
     }
   },
-
-  // Verification
   async verifyCredential(
     credentialId: string,
     simulatedTamper?: Partial<AcademicRecordData>
   ): Promise<VerificationResult> {
-    try {
-      if (simulatedTamper) {
-        const res = await apiClient.post(`/verify/simulate-tamper`, {
-          credential_id: credentialId,
-          tampered_data: simulatedTamper,
-        });
-        return res.data;
-      }
-      const res = await apiClient.get(`/verify/${credentialId}`);
-      return res.data;
-    } catch {
+    const verifyLocally = async (): Promise<VerificationResult> => {
       const creds = getLocalStore<Credential[]>("credentials", initialCredentials);
       const blocks = getLocalStore<Block[]>("blocks", initialBlocks);
       const cred = creds.find((c) => c.credential_id.toLowerCase() === credentialId.toLowerCase());
@@ -690,6 +776,26 @@ export const api = {
         computed_hash: isTampered ? `tampered_hash_${Math.random().toString(16).substring(2, 10)}` : version.credential_hash,
         stored_hash: version.credential_hash,
       };
+    };
+
+    const backendUp = await isBackendAvailable();
+    if (!backendUp) {
+      return verifyLocally();
+    }
+
+    try {
+      if (simulatedTamper) {
+        const res = await apiClient.post(`/verify/simulate-tamper`, {
+          credential_id: credentialId,
+          tampered_data: simulatedTamper,
+        });
+        return res.data;
+      }
+      const res = await apiClient.get(`/verify/${credentialId}`);
+      return res.data;
+    } catch {
+      backendAvailableCache = false;
+      return verifyLocally();
     }
   },
 

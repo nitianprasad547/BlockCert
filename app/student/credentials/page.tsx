@@ -2,29 +2,38 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { 
-  Award, 
-  CheckCircle2, 
-  ExternalLink, 
-  QrCode, 
-  Copy, 
-  Check, 
-  Eye 
-} from "lucide-react";
+import { Award, ExternalLink, Copy, Check, Eye } from "lucide-react";
 import { Credential } from "@/types";
 import { api } from "@/lib/api";
 import { formatHash, copyTextToClipboard } from "@/lib/crypto";
 
+function getStudentId(): string {
+  return api.getCurrentUser()?.student_id || "STU-RAHUL-01";
+}
+
 export default function StudentCredentialsListPage() {
   const [credentials, setCredentials] = useState<Credential[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
+  const loadCredentials = () => {
+    setLoading(true);
+    setLoadError(null);
+    api
+      .getStudentCredentials(getStudentId())
+      .then((data) => setCredentials(data))
+      .catch((err) => {
+        setLoadError(err instanceof Error ? err.message : "Failed to load credentials.");
+      })
+      .finally(() => setLoading(false));
+  };
+
   useEffect(() => {
-    api.getStudentCredentials("STU-RAHUL-01").then((data) => {
-      setCredentials(data);
-      setLoading(false);
-    });
+    loadCredentials();
+    const handleUpdate = () => loadCredentials();
+    window.addEventListener("blockcert:credentials-updated", handleUpdate);
+    return () => window.removeEventListener("blockcert:credentials-updated", handleUpdate);
   }, []);
 
   const handleCopy = async (id: string) => {
@@ -37,19 +46,25 @@ export default function StudentCredentialsListPage() {
 
   return (
     <div className="space-y-8 text-left">
-      
       <div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-white">
-          My Academic Credentials
-        </h1>
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-white">My Academic Credentials</h1>
         <p className="text-xs text-slate-400 mt-1">
           Cryptographically signed degrees and academic attestations issued to your student identity.
         </p>
       </div>
 
       {loading ? (
-        <div className="py-20 text-center text-xs font-mono text-slate-400">
-          Loading credentials...
+        <div className="py-20 text-center text-xs font-mono text-slate-400">Loading credentials...</div>
+      ) : loadError ? (
+        <div className="py-16 text-center space-y-3">
+          <p className="text-rose-300 text-sm">{loadError}</p>
+          <button
+            type="button"
+            onClick={loadCredentials}
+            className="px-4 py-2 rounded-xl bg-cyan-500 text-slate-950 text-xs font-bold cursor-pointer"
+          >
+            Retry
+          </button>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -65,17 +80,12 @@ export default function StudentCredentialsListPage() {
                       <Award className="h-5 w-5" />
                     </div>
                     <div>
-                      <span className="text-[10px] uppercase font-bold text-amber-400">
-                        {cred.institution_name}
-                      </span>
-                      <div className="text-sm font-extrabold text-white">
-                        {cred.latest_version.degree}
-                      </div>
+                      <span className="text-[10px] uppercase font-bold text-amber-400">{cred.institution_name}</span>
+                      <div className="text-sm font-extrabold text-white">{cred.latest_version.degree}</div>
                     </div>
                   </div>
-
                   <span className="text-xs font-mono px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-bold">
-                    v{cred.current_version}.0 ACTIVE
+                    v{cred.current_version}.0 {cred.status}
                   </span>
                 </div>
 
@@ -104,7 +114,11 @@ export default function StudentCredentialsListPage() {
                       className="text-amber-300 hover:text-white flex items-center gap-1 font-bold cursor-pointer"
                     >
                       {cred.credential_id}
-                      {copiedId === cred.credential_id ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3 text-slate-500" />}
+                      {copiedId === cred.credential_id ? (
+                        <Check className="h-3 w-3 text-emerald-400" />
+                      ) : (
+                        <Copy className="h-3 w-3 text-slate-500" />
+                      )}
                     </button>
                   </div>
                   <div className="text-slate-500 text-[10px]">
@@ -121,7 +135,6 @@ export default function StudentCredentialsListPage() {
                   <Eye className="h-3.5 w-3.5" />
                   <span>View Official Diploma</span>
                 </Link>
-
                 <Link
                   href={`/verify?id=${cred.credential_id}`}
                   className="text-xs text-emerald-400 hover:underline font-semibold flex items-center gap-1"
@@ -130,12 +143,10 @@ export default function StudentCredentialsListPage() {
                   <ExternalLink className="h-3.5 w-3.5" />
                 </Link>
               </div>
-
             </div>
           ))}
         </div>
       )}
-
     </div>
   );
 }

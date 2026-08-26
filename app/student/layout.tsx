@@ -1,10 +1,12 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import DemoModal, { ModalType } from "@/components/DemoModal";
+import { api } from "@/lib/api";
 import { 
   GraduationCap, 
   LayoutDashboard, 
@@ -20,6 +22,15 @@ export default function StudentLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const [activeModal, setActiveModal] = useState<ModalType>(null);
+  const [studentLabel, setStudentLabel] = useState("Student Credential Locker");
+
+  useEffect(() => {
+    const user = api.getCurrentUser();
+    if (user?.name) {
+      setStudentLabel(`${user.name} · Student Portal`);
+    }
+  }, []);
 
   const navItems = [
     {
@@ -41,7 +52,7 @@ export default function StudentLayout({
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 selection:bg-emerald-500 selection:text-slate-950 bg-grid-pattern relative flex flex-col justify-between">
-      <Navbar />
+      <Navbar onOpenDemoModal={() => setActiveModal("demo")} />
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full space-y-8">
         
@@ -57,7 +68,7 @@ export default function StudentLayout({
                 STUDENT CREDENTIAL LOCKER
               </div>
               <h2 className="text-sm sm:text-base font-extrabold text-white">
-                Rahul Sharma · B.Tech Computer Science (2022-CS-0418)
+                {studentLabel}
               </h2>
             </div>
           </div>
@@ -91,7 +102,11 @@ export default function StudentLayout({
 
       </div>
 
-      <Footer />
+      <Footer
+        onOpenDemoModal={() => setActiveModal("demo")}
+        onOpenWhitepaperModal={() => setActiveModal("whitepaper")}
+      />
+      <DemoModal type={activeModal} onClose={() => setActiveModal(null)} />
     </div>
   );
 }

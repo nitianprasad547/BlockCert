@@ -41,9 +41,9 @@ export default function CredentialCard({
   const [copiedLink, setCopiedLink] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState<string>("");
 
-  const verifyUrl = typeof window !== "undefined" 
-    ? `${window.location.origin}/verify/${permanentId}`
-    : `https://blockcert.verify/verify/${permanentId}`;
+  const verifyUrl = typeof window !== "undefined"
+    ? `${window.location.origin}/verify?id=${permanentId}`
+    : `https://blockcert.verify/verify?id=${permanentId}`;
 
   React.useEffect(() => {
     QRCode.toDataURL(verifyUrl, {

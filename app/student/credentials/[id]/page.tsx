@@ -3,11 +3,16 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Award, ExternalLink, QrCode } from "lucide-react";
+import { ArrowLeft, ExternalLink } from "lucide-react";
 import { Credential } from "@/types";
 import { api } from "@/lib/api";
 import CredentialCard from "@/components/CredentialCard";
 import DiscrepancyModal from "@/components/DiscrepancyModal";
+import BlockchainExplorerModal from "@/components/BlockchainExplorerModal";
+
+function getStudentName(): string {
+  return api.getCurrentUser()?.name || "Rahul Sharma";
+}
 
 export default function StudentCredentialDetailPage() {
   const params = useParams();
@@ -15,18 +20,38 @@ export default function StudentCredentialDetailPage() {
 
   const [credential, setCredential] = useState<Credential | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [isDiscrepancyOpen, setIsDiscrepancyOpen] = useState(false);
+  const [isChainOpen, setIsChainOpen] = useState(false);
+  const [studentName, setStudentName] = useState(getStudentName());
 
   useEffect(() => {
     if (!id) return;
-    api.getCredentialById(id).then((data) => {
-      setCredential(data);
-      setLoading(false);
-    });
+    setStudentName(getStudentName());
+    setLoading(true);
+    setLoadError(null);
+    api
+      .getCredentialById(id)
+      .then((data) => setCredential(data))
+      .catch((err) => {
+        setLoadError(err instanceof Error ? err.message : "Failed to load credential.");
+      })
+      .finally(() => setLoading(false));
   }, [id]);
 
   if (loading) {
     return <div className="py-24 text-center font-mono text-xs text-slate-400">Loading certificate...</div>;
+  }
+
+  if (loadError) {
+    return (
+      <div className="py-20 text-center space-y-3">
+        <p className="text-rose-300">{loadError}</p>
+        <Link href="/student/credentials" className="text-xs text-cyan-400 underline">
+          Back to credentials
+        </Link>
+      </div>
+    );
   }
 
   if (!credential) {
@@ -42,8 +67,6 @@ export default function StudentCredentialDetailPage() {
 
   return (
     <div className="space-y-8 text-left max-w-5xl mx-auto">
-      
-      {/* Header */}
       <div className="flex items-center justify-between">
         <Link
           href="/student/credentials"
@@ -62,23 +85,27 @@ export default function StudentCredentialDetailPage() {
         </Link>
       </div>
 
-      {/* Official Certificate Card */}
       <CredentialCard
         credential={credential.latest_version}
         permanentId={credential.credential_id}
         status={credential.status}
         onReportDiscrepancy={() => setIsDiscrepancyOpen(true)}
+        onOpenChainExplorer={() => setIsChainOpen(true)}
       />
 
-      {/* Discrepancy Modal */}
       <DiscrepancyModal
         isOpen={isDiscrepancyOpen}
         onClose={() => setIsDiscrepancyOpen(false)}
         credentialId={credential.credential_id}
-        defaultReporterName="Rahul Sharma"
+        defaultReporterName={studentName}
         defaultRole="Student"
       />
 
+      <BlockchainExplorerModal
+        isOpen={isChainOpen}
+        onClose={() => setIsChainOpen(false)}
+        selectedCredentialId={credential.credential_id}
+      />
     </div>
   );
 }

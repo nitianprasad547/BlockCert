@@ -116,7 +116,7 @@ export default function SecurityPage() {
             </div>
           </div>
 
-          <div className="rounded-3xl glass-panel p-6 sm:p-8 border border-amber-500/30 bg-slate-900/80 space-y-4 text-left">
+          <div className="rounded-3xl glass-panel p-6 sm:p-8 border border-amber-500/30 bg-slate-900/80 space-y-4 text-left" id="hash-chain">
             <div className="p-3 rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/30 w-fit">
               <Layers className="h-6 w-6" />
             </div>
@@ -173,6 +173,15 @@ export default function SecurityPage() {
           </div>
         </div>
 
+        {/* Tamper Detection */}
+        <div id="tamper-detection" className="rounded-3xl glass-panel p-8 sm:p-10 border border-rose-500/30 bg-slate-900/90 space-y-4 text-left">
+          <h3 className="text-xl font-extrabold text-white">Tamper Detection Engine</h3>
+          <p className="text-xs text-slate-300 leading-relaxed">
+            BlockCert recomputes the canonical SHA-256 digest at verification time and compares it against the signed ledger hash.
+            Any mismatch in student name, CGPA, or degree fields triggers an immediate <strong className="text-rose-400">TAMPERED</strong> result.
+          </p>
+        </div>
+
         {/* Action CTAs */}
         <div className="rounded-3xl glass-panel p-8 sm:p-10 border border-white/10 bg-slate-900/90 flex flex-col sm:flex-row items-center justify-between gap-6 text-left">
           <div>
@@ -190,7 +199,10 @@ export default function SecurityPage() {
 
       </main>
 
-      <Footer onOpenDemoModal={() => setActiveModal("demo")} />
+      <Footer
+        onOpenDemoModal={() => setActiveModal("demo")}
+        onOpenWhitepaperModal={() => setActiveModal("whitepaper")}
+      />
       <DemoModal type={activeModal} onClose={() => setActiveModal(null)} />
     </div>
   );

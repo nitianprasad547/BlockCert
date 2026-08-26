@@ -241,7 +241,10 @@ Status: ACTIVE LEDGER ANCHORED`,
 
       </main>
 
-      <Footer onOpenDemoModal={() => setActiveModal("demo")} />
+      <Footer
+        onOpenDemoModal={() => setActiveModal("demo")}
+        onOpenWhitepaperModal={() => setActiveModal("whitepaper")}
+      />
       <DemoModal type={activeModal} onClose={() => setActiveModal(null)} />
     </div>
   );

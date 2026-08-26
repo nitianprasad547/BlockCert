@@ -2,46 +2,64 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { 
-  GraduationCap, 
-  Award, 
-  CheckCircle2, 
-  QrCode, 
-  Copy, 
-  Check, 
-  ExternalLink, 
+import {
+  GraduationCap,
+  Award,
+  QrCode,
+  ExternalLink,
   AlertTriangle,
   ArrowRight,
-  Sparkles,
-  Lock
 } from "lucide-react";
 import { Credential } from "@/types";
 import { api } from "@/lib/api";
 import CredentialCard from "@/components/CredentialCard";
 import DiscrepancyModal from "@/components/DiscrepancyModal";
+import BlockchainExplorerModal from "@/components/BlockchainExplorerModal";
+
+function getStudentId(): string {
+  return api.getCurrentUser()?.student_id || "STU-RAHUL-01";
+}
+
+function getStudentName(): string {
+  return api.getCurrentUser()?.name || "Rahul Sharma";
+}
 
 export default function StudentDashboard() {
   const [credentials, setCredentials] = useState<Credential[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedCredForDiscrepancy, setSelectedCredForDiscrepancy] = useState<string | null>(null);
+  const [isChainOpen, setIsChainOpen] = useState(false);
+  const [studentName, setStudentName] = useState(getStudentName());
+
+  const loadCredentials = () => {
+    setLoading(true);
+    setLoadError(null);
+    setStudentName(getStudentName());
+    api
+      .getStudentCredentials(getStudentId())
+      .then((data) => setCredentials(data))
+      .catch((err) => {
+        setLoadError(err instanceof Error ? err.message : "Failed to load credentials.");
+      })
+      .finally(() => setLoading(false));
+  };
 
   useEffect(() => {
-    api.getStudentCredentials("STU-RAHUL-01").then((data) => {
-      setCredentials(data);
-      setLoading(false);
-    });
+    loadCredentials();
+    const handleUpdate = () => loadCredentials();
+    window.addEventListener("blockcert:credentials-updated", handleUpdate);
+    return () => window.removeEventListener("blockcert:credentials-updated", handleUpdate);
   }, []);
 
   const primaryCred = credentials[0];
 
   return (
     <div className="space-y-8 text-left">
-      
-      {/* Welcome Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-white">
-            Welcome back, Rahul Sharma
+            Welcome back, {studentName}
           </h1>
           <p className="text-xs text-slate-400 mt-1">
             Your permanent academic credentials, cryptographic QR codes, and tamper-proof degrees.
@@ -61,12 +79,21 @@ export default function StudentDashboard() {
         <div className="py-20 text-center text-xs font-mono text-slate-400">
           Loading student credentials from ledger...
         </div>
+      ) : loadError ? (
+        <div className="py-16 text-center space-y-3">
+          <p className="text-rose-300 text-sm">{loadError}</p>
+          <button
+            type="button"
+            onClick={loadCredentials}
+            className="px-4 py-2 rounded-xl bg-cyan-500 text-slate-950 text-xs font-bold cursor-pointer"
+          >
+            Retry
+          </button>
+        </div>
       ) : !primaryCred ? (
         <div className="py-16 text-center text-slate-400">No credentials found.</div>
       ) : (
         <div className="space-y-8">
-          
-          {/* Featured Primary Credential Card */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-white flex items-center gap-2">
@@ -83,12 +110,11 @@ export default function StudentDashboard() {
               permanentId={primaryCred.credential_id}
               status={primaryCred.status}
               onReportDiscrepancy={() => setSelectedCredForDiscrepancy(primaryCred.credential_id)}
+              onOpenChainExplorer={() => setIsChainOpen(true)}
             />
           </div>
 
-          {/* Quick Sharing & Discrepancy Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            
             <div className="rounded-3xl glass-panel p-6 sm:p-7 border border-white/10 bg-slate-900/80 space-y-4">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
@@ -101,7 +127,7 @@ export default function StudentDashboard() {
               </div>
 
               <p className="text-xs text-slate-300 leading-relaxed">
-                Provide your permanent QR code or direct link to recruiters and employers. They can independently verify your degree validity, CGPA, and university digital signature without contacting the university registrar.
+                Provide your permanent QR code or direct link to recruiters. They can independently verify your degree validity, CGPA, and university digital signature.
               </p>
 
               <div className="pt-2 flex items-center gap-3">
@@ -132,7 +158,7 @@ export default function StudentDashboard() {
               </div>
 
               <p className="text-xs text-slate-300 leading-relaxed">
-                If your grade was updated, spelling corrected, or degree modified, submit a formal discrepancy report. The registrar will review and issue Version 2.0 with the same permanent ID.
+                If your grade was updated or spelling corrected, submit a formal discrepancy report. The registrar will review and issue Version 2.0 with the same permanent ID.
               </p>
 
               <div className="pt-2">
@@ -145,21 +171,23 @@ export default function StudentDashboard() {
                 </button>
               </div>
             </div>
-
           </div>
-
         </div>
       )}
 
-      {/* Discrepancy Modal */}
       <DiscrepancyModal
         isOpen={!!selectedCredForDiscrepancy}
         onClose={() => setSelectedCredForDiscrepancy(null)}
         credentialId={selectedCredForDiscrepancy || primaryCred?.credential_id}
-        defaultReporterName="Rahul Sharma"
+        defaultReporterName={studentName}
         defaultRole="Student"
       />
 
+      <BlockchainExplorerModal
+        isOpen={isChainOpen}
+        onClose={() => setIsChainOpen(false)}
+        selectedCredentialId={primaryCred?.credential_id}
+      />
     </div>
   );
 }

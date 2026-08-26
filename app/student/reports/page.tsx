@@ -17,14 +17,19 @@ import DiscrepancyModal from "@/components/DiscrepancyModal";
 export default function StudentReportsTrackerPage() {
   const [reports, setReports] = useState<DiscrepancyReport[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const studentName = api.getCurrentUser()?.name || "Rahul Sharma";
 
   const loadReports = async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const data = await api.getReports();
       setReports(data);
     } catch (err) {
+      setLoadError(err instanceof Error ? err.message : "Failed to load reports.");
       console.error("Error loading reports", err);
     } finally {
       setLoading(false);
@@ -71,6 +76,17 @@ export default function StudentReportsTrackerPage() {
           {loading ? (
             <div className="py-16 text-center text-xs font-mono text-slate-400">
               Loading report history...
+            </div>
+          ) : loadError ? (
+            <div className="py-16 text-center space-y-3">
+              <p className="text-xs text-rose-300">{loadError}</p>
+              <button
+                type="button"
+                onClick={loadReports}
+                className="text-xs text-emerald-400 font-semibold underline cursor-pointer"
+              >
+                Retry
+              </button>
             </div>
           ) : reports.length === 0 ? (
             <div className="py-16 text-center space-y-3">
@@ -136,7 +152,7 @@ export default function StudentReportsTrackerPage() {
           loadReports();
         }}
         credentialId="CRED-7F83A91"
-        defaultReporterName="Rahul Sharma"
+        defaultReporterName={studentName}
         defaultRole="Student"
       />
 

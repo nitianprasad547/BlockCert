@@ -130,6 +130,22 @@ export function formatHash(hash?: string, chars = 8): string {
   return `${hash.substring(0, chars)}...${hash.substring(hash.length - chars)}`;
 }
 
+export function extractCredentialId(input: string): string | null {
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+
+  const queryMatch = trimmed.match(/[?&]id=(CRED-[A-Z0-9]+)/i);
+  if (queryMatch) return queryMatch[1].toUpperCase();
+
+  const pathMatch = trimmed.match(/\/verify\/(CRED-[A-Z0-9]+)/i);
+  if (pathMatch) return pathMatch[1].toUpperCase();
+
+  const directMatch = trimmed.match(/(CRED-[A-Z0-9]+)/i);
+  if (directMatch) return directMatch[1].toUpperCase();
+
+  return null;
+}
+
 export async function copyTextToClipboard(text: string): Promise<boolean> {
   if (typeof window === "undefined") return false;
   if (navigator?.clipboard && typeof navigator.clipboard.writeText === "function") {

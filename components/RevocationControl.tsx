@@ -165,7 +165,7 @@ export default function RevocationControl({ onOpenDemoModal }: RevocationControl
             </div>
 
             {/* Action CTA Button */}
-            <div className="pt-4 flex items-center gap-3">
+            <div className="pt-4 flex flex-wrap items-center gap-3">
               <Link
                 href="/verify?id=CRED-7F83A91"
                 className="inline-flex items-center gap-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-6 py-3.5 text-base font-bold text-slate-950 shadow-xl shadow-emerald-500/20 hover:from-emerald-400 hover:to-teal-400 transition-all cursor-pointer"
@@ -180,6 +180,16 @@ export default function RevocationControl({ onOpenDemoModal }: RevocationControl
               >
                 <span>Read Cryptographic Specs</span>
               </Link>
+
+              {onOpenDemoModal && (
+                <button
+                  type="button"
+                  onClick={onOpenDemoModal}
+                  className="inline-flex items-center gap-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 px-5 py-3.5 text-sm font-semibold text-amber-300 hover:text-amber-200 cursor-pointer"
+                >
+                  <span>Schedule Registrar Demo</span>
+                </button>
+              )}
             </div>
 
           </div>

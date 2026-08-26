@@ -1,10 +1,11 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import DemoModal, { ModalType } from "@/components/DemoModal";
 import { 
   Building2, 
   LayoutDashboard, 
@@ -23,6 +24,7 @@ export default function InstituteLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const [activeModal, setActiveModal] = useState<ModalType>(null);
 
   const navItems = [
     {
@@ -54,7 +56,7 @@ export default function InstituteLayout({
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 selection:bg-emerald-500 selection:text-slate-950 bg-grid-pattern relative flex flex-col justify-between">
-      <Navbar />
+      <Navbar onOpenDemoModal={() => setActiveModal("demo")} />
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full space-y-8">
         
@@ -104,7 +106,11 @@ export default function InstituteLayout({
 
       </div>
 
-      <Footer />
+      <Footer
+        onOpenDemoModal={() => setActiveModal("demo")}
+        onOpenWhitepaperModal={() => setActiveModal("whitepaper")}
+      />
+      <DemoModal type={activeModal} onClose={() => setActiveModal(null)} />
     </div>
   );
 }

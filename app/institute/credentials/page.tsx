@@ -27,10 +27,19 @@ export default function InstituteCredentialsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.getCredentials().then((data) => {
-      setCredentials(data);
-      setLoading(false);
-    });
+    const loadCredentials = () => {
+      setLoading(true);
+      api.getCredentials().then((data) => {
+        setCredentials(data);
+        setLoading(false);
+      });
+    };
+
+    loadCredentials();
+
+    const handleUpdate = () => loadCredentials();
+    window.addEventListener("blockcert:credentials-updated", handleUpdate);
+    return () => window.removeEventListener("blockcert:credentials-updated", handleUpdate);
   }, []);
 
   const filtered = credentials.filter((c) => {

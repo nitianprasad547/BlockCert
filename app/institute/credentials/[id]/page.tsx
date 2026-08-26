@@ -36,6 +36,7 @@ export default function InstituteCredentialDetailPage() {
   const [isRevokeModalOpen, setIsRevokeModalOpen] = useState(false);
   const [revocationReason, setRevocationReason] = useState("");
   const [revoking, setRevoking] = useState(false);
+  const [revokeError, setRevokeError] = useState<string | null>(null);
 
   // Chain explorer modal
   const [isChainModalOpen, setIsChainModalOpen] = useState(false);
@@ -62,6 +63,7 @@ export default function InstituteCredentialDetailPage() {
     if (!revocationReason.trim() || !credential) return;
 
     setRevoking(true);
+    setRevokeError(null);
     try {
       const updated = await api.revokeCredential({
         credential_id: credential.credential_id,
@@ -71,6 +73,8 @@ export default function InstituteCredentialDetailPage() {
       setIsRevokeModalOpen(false);
       setRevocationReason("");
     } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to revoke credential.";
+      setRevokeError(message);
       console.error("Revocation error", err);
     } finally {
       setRevoking(false);
@@ -274,9 +278,15 @@ export default function InstituteCredentialDetailPage() {
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-2">
+                {revokeError && (
+                  <p className="flex-1 text-xs text-rose-400">{revokeError}</p>
+                )}
                 <button
                   type="button"
-                  onClick={() => setIsRevokeModalOpen(false)}
+                  onClick={() => {
+                    setIsRevokeModalOpen(false);
+                    setRevokeError(null);
+                  }}
                   className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 hover:text-white cursor-pointer"
                 >
                   Cancel

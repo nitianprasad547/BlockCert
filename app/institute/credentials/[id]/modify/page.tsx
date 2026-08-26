@@ -40,6 +40,7 @@ export default function ModifyCredentialPage() {
 
   const [liveHash, setLiveHash] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -90,6 +91,7 @@ export default function ModifyCredentialPage() {
     if (!credential || !formData.modification_reason.trim()) return;
 
     setSubmitting(true);
+    setSubmitError(null);
     try {
       await api.modifyCredential({
         credential_id: credential.credential_id,
@@ -97,6 +99,8 @@ export default function ModifyCredentialPage() {
       });
       router.push(`/institute/credentials/${credential.credential_id}`);
     } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to modify credential.";
+      setSubmitError(message);
       console.error("Modification error", err);
     } finally {
       setSubmitting(false);
@@ -235,6 +239,12 @@ export default function ModifyCredentialPage() {
               <Send className="h-4 w-4" />
               <span>{submitting ? "Signing New Version On-Chain..." : `Digitally Sign & Issue Version ${nextVersionNum}.0`}</span>
             </button>
+
+            {submitError && (
+              <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-xs text-rose-300">
+                {submitError}
+              </div>
+            )}
           </form>
         </div>
 

@@ -117,21 +117,38 @@ export default function Footer({ onOpenDemoModal, onOpenWhitepaperModal }: Foote
           <div className="space-y-3 text-left">
             <h4 className="text-xs font-bold text-white uppercase tracking-wider">Resources</h4>
             <ul className="space-y-2 text-xs">
-              {onOpenWhitepaperModal && (
-                <li>
-                  <button onClick={onOpenWhitepaperModal} className="hover:text-emerald-400 transition-colors flex items-center gap-1 cursor-pointer">
+              <li>
+                {onOpenWhitepaperModal ? (
+                  <button
+                    type="button"
+                    onClick={onOpenWhitepaperModal}
+                    className="hover:text-emerald-400 transition-colors flex items-center gap-1 cursor-pointer"
+                  >
                     <span>Technical Whitepaper</span>
                     <ExternalLink className="h-3 w-3" />
                   </button>
-                </li>
-              )}
-              {onOpenDemoModal && (
-                <li>
-                  <button onClick={onOpenDemoModal} className="hover:text-emerald-400 transition-colors cursor-pointer">
+                ) : (
+                  <Link href="/security" className="hover:text-emerald-400 transition-colors flex items-center gap-1">
+                    <span>Technical Whitepaper</span>
+                    <ExternalLink className="h-3 w-3" />
+                  </Link>
+                )}
+              </li>
+              <li>
+                {onOpenDemoModal ? (
+                  <button
+                    type="button"
+                    onClick={onOpenDemoModal}
+                    className="hover:text-emerald-400 transition-colors cursor-pointer"
+                  >
                     Schedule Registrar Demo
                   </button>
-                </li>
-              )}
+                ) : (
+                  <Link href="/login?role=INSTITUTE" className="hover:text-emerald-400 transition-colors">
+                    Schedule Registrar Demo
+                  </Link>
+                )}
+              </li>
               <li>
                 <a href="http://127.0.0.1:8000/docs" target="_blank" rel="noopener noreferrer" className="hover:text-emerald-400 transition-colors flex items-center gap-1">
                   <span>FastAPI OpenAPI Docs</span>

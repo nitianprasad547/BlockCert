@@ -28,6 +28,7 @@ export default function DiscrepancyModal({
   });
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   React.useEffect(() => {
     setFormData((prev) => ({
@@ -45,10 +46,13 @@ export default function DiscrepancyModal({
     if (!formData.credential_id || !formData.description.trim()) return;
 
     setSubmitting(true);
+    setSubmitError(null);
     try {
       await api.submitReport(formData);
       setSubmitted(true);
     } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to submit report. Please try again.";
+      setSubmitError(message);
       console.error("Error submitting report", err);
     } finally {
       setSubmitting(false);
@@ -57,6 +61,7 @@ export default function DiscrepancyModal({
 
   const handleReset = () => {
     setSubmitted(false);
+    setSubmitError(null);
     setFormData({
       credential_id: credentialId,
       reported_by: defaultReporterName,
@@ -183,6 +188,12 @@ export default function DiscrepancyModal({
               <Send className="h-4 w-4" />
               <span>{submitting ? "Submitting Report..." : "Transmit Discrepancy Report"}</span>
             </button>
+
+            {submitError && (
+              <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-xs text-rose-300">
+                {submitError}
+              </div>
+            )}
           </form>
         )}
 

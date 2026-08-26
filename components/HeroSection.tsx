@@ -138,6 +138,28 @@ export default function HeroSection({ onOpenDemoModal, onOpenWhitepaperModal }: 
                 <Building2 className="h-5 w-5 text-emerald-400" />
                 <span>Institution Login</span>
               </Link>
+
+              {onOpenDemoModal && (
+                <button
+                  type="button"
+                  onClick={onOpenDemoModal}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 px-5 py-3.5 text-sm font-semibold text-amber-300 hover:text-amber-200 cursor-pointer"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  <span>Schedule Demo</span>
+                </button>
+              )}
+
+              {onOpenWhitepaperModal && (
+                <button
+                  type="button"
+                  onClick={onOpenWhitepaperModal}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 px-5 py-3.5 text-sm font-semibold text-slate-300 hover:text-white cursor-pointer"
+                >
+                  <FileCode2 className="h-4 w-4 text-cyan-400" />
+                  <span>Technical Whitepaper</span>
+                </button>
+              )}
             </div>
 
           </div>

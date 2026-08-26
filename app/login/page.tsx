@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import DemoModal, { ModalType } from "@/components/DemoModal";
 import EmailVerificationModal from "@/components/EmailVerificationModal";
 import { 
   Building2, 
@@ -100,7 +101,10 @@ function LoginForm() {
 
   const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) return;
+    if (!email.trim()) {
+      setError("Email is required.");
+      return;
+    }
 
     setLoading(true);
     setError(null);
@@ -406,15 +410,21 @@ function LoginForm() {
 }
 
 export default function LoginPage() {
+  const [activeModal, setActiveModal] = useState<ModalType>(null);
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 selection:bg-emerald-500 selection:text-slate-950 bg-grid-pattern relative flex flex-col justify-between">
-      <Navbar />
+      <Navbar onOpenDemoModal={() => setActiveModal("demo")} />
       <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16 sm:py-20 flex-1 flex items-center justify-center">
         <Suspense fallback={<div className="text-slate-400 font-mono text-xs">Loading authentication portal...</div>}>
           <LoginForm />
         </Suspense>
       </main>
-      <Footer />
+      <Footer
+        onOpenDemoModal={() => setActiveModal("demo")}
+        onOpenWhitepaperModal={() => setActiveModal("whitepaper")}
+      />
+      <DemoModal type={activeModal} onClose={() => setActiveModal(null)} />
     </div>
   );
 }

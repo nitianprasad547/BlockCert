@@ -26,9 +26,11 @@ export default function InstituteDashboard() {
   const [reports, setReports] = useState<DiscrepancyReport[]>([]);
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const loadData = async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const [creds, reps, blks] = await Promise.all([
         api.getCredentials(),
@@ -39,6 +41,7 @@ export default function InstituteDashboard() {
       setReports(reps);
       setBlocks(blks);
     } catch (err) {
+      setLoadError(err instanceof Error ? err.message : "Failed to load dashboard data.");
       console.error("Dashboard data load error", err);
     } finally {
       setLoading(false);
@@ -47,6 +50,10 @@ export default function InstituteDashboard() {
 
   useEffect(() => {
     loadData();
+
+    const handleUpdate = () => loadData();
+    window.addEventListener("blockcert:credentials-updated", handleUpdate);
+    return () => window.removeEventListener("blockcert:credentials-updated", handleUpdate);
   }, []);
 
   const totalIssued = credentials.length;
@@ -78,6 +85,19 @@ export default function InstituteDashboard() {
           </Link>
         </div>
       </div>
+
+      {loadError && (
+        <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-xs text-rose-300 flex items-center justify-between gap-4">
+          <span>{loadError}</span>
+          <button
+            type="button"
+            onClick={loadData}
+            className="text-emerald-400 font-bold underline cursor-pointer"
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
       {/* Metric Cards Grid (PRD Section 4.2) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">

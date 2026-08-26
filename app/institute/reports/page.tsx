@@ -22,13 +22,17 @@ export default function InstituteReportsPage() {
   const [resolutionNotes, setResolutionNotes] = useState("");
   const [resolving, setResolving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [resolveError, setResolveError] = useState<string | null>(null);
 
   const fetchReports = async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const data = await api.getReports();
       setReports(data);
     } catch (err) {
+      setLoadError(err instanceof Error ? err.message : "Failed to load reports.");
       console.error("Error loading reports", err);
     } finally {
       setLoading(false);
@@ -44,12 +48,14 @@ export default function InstituteReportsPage() {
     if (!selectedReport || !resolutionNotes.trim()) return;
 
     setResolving(true);
+    setResolveError(null);
     try {
       await api.resolveReport(selectedReport.report_id, resolutionNotes.trim());
       await fetchReports();
       setSelectedReport(null);
       setResolutionNotes("");
     } catch (err) {
+      setResolveError(err instanceof Error ? err.message : "Failed to resolve report.");
       console.error("Error resolving report", err);
     } finally {
       setResolving(false);
@@ -83,6 +89,17 @@ export default function InstituteReportsPage() {
           {loading ? (
             <div className="py-16 text-center text-xs font-mono text-slate-400">
               Loading discrepancy reports...
+            </div>
+          ) : loadError ? (
+            <div className="py-16 text-center space-y-3">
+              <p className="text-xs text-rose-300">{loadError}</p>
+              <button
+                type="button"
+                onClick={fetchReports}
+                className="text-xs text-emerald-400 font-semibold underline cursor-pointer"
+              >
+                Retry
+              </button>
             </div>
           ) : reports.length === 0 ? (
             <div className="py-16 text-center text-xs text-slate-400">
@@ -192,9 +209,15 @@ export default function InstituteReportsPage() {
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-2">
+                {resolveError && (
+                  <p className="flex-1 text-xs text-rose-400">{resolveError}</p>
+                )}
                 <button
                   type="button"
-                  onClick={() => setSelectedReport(null)}
+                  onClick={() => {
+                    setSelectedReport(null);
+                    setResolveError(null);
+                  }}
                   className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 hover:text-white cursor-pointer"
                 >
                   Cancel

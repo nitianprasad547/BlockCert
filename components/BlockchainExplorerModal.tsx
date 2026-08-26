@@ -31,16 +31,20 @@ export default function BlockchainExplorerModal({
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [loading, setLoading] = useState(true);
   const [validating, setValidating] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [validationResult, setValidationResult] = useState<{ is_valid: boolean; total_blocks: number } | null>(null);
 
   const fetchBlocks = async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const data = await api.getBlockchainBlocks();
       setBlocks(data);
       const val = await api.validateBlockchain();
       setValidationResult(val);
     } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to load blockchain data.";
+      setLoadError(message);
       console.error("Error loading blocks", err);
     } finally {
       setLoading(false);
@@ -143,7 +147,16 @@ export default function BlockchainExplorerModal({
             </div>
           ) : filteredBlocks.length === 0 ? (
             <div className="py-16 text-center space-y-2 text-slate-400">
-              <p>No blocks recorded yet for this query.</p>
+              <p>{loadError || "No blocks recorded yet for this query."}</p>
+              {loadError && (
+                <button
+                  type="button"
+                  onClick={fetchBlocks}
+                  className="px-4 py-2 rounded-xl bg-emerald-500 text-slate-950 text-xs font-bold cursor-pointer"
+                >
+                  Retry
+                </button>
+              )}
             </div>
           ) : (
             <div className="space-y-4">

@@ -1,21 +1,68 @@
 "use client";
 
-import React, { useState, useRef } from "react";
-import { 
-  Camera, 
-  Upload, 
-  Search, 
-  QrCode, 
-  Sparkles, 
-  ArrowRight, 
-  CheckCircle2, 
+import React, { useState, useRef, useEffect, useCallback } from "react";
+import {
+  Camera,
+  Upload,
+  Search,
+  QrCode,
+  Sparkles,
+  ArrowRight,
+  CheckCircle2,
   AlertCircle,
-  RefreshCw
 } from "lucide-react";
+import { extractCredentialId } from "@/lib/crypto";
 
 interface QRScannerProps {
   onScanResult: (credentialId: string) => void;
   isLoading?: boolean;
+}
+
+type BarcodeDetectorLike = {
+  detect: (source: ImageBitmapSource) => Promise<Array<{ rawValue?: string }>>;
+};
+
+async function decodeQrFromFile(file: File): Promise<string | null> {
+  const fromFilename = extractCredentialId(file.name);
+
+  if (typeof window === "undefined") {
+    return fromFilename;
+  }
+
+  const BarcodeDetectorCtor = (window as Window & { BarcodeDetector?: new (opts: { formats: string[] }) => BarcodeDetectorLike }).BarcodeDetector;
+  if (!BarcodeDetectorCtor) {
+    return fromFilename;
+  }
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+
+    img.onload = async () => {
+      try {
+        const detector = new BarcodeDetectorCtor({ formats: ["qr_code"] });
+        const canvas = document.createElement("canvas");
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext("2d");
+        ctx?.drawImage(img, 0, 0);
+        const barcodes = await detector.detect(canvas);
+        const text = barcodes[0]?.rawValue || "";
+        resolve(extractCredentialId(text) || fromFilename);
+      } catch {
+        resolve(fromFilename);
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve(fromFilename);
+    };
+
+    img.src = url;
+  });
 }
 
 export default function QRScanner({ onScanResult, isLoading = false }: QRScannerProps) {
@@ -24,10 +71,12 @@ export default function QRScanner({ onScanResult, isLoading = false }: QRScanner
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadSuccess, setUploadSuccess] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const scanIntervalRef = useRef<number | null>(null);
 
-  // Demo presets matching PRD hackathon demo flow
   const samplePresets = [
     {
       id: "CRED-7F83A91",
@@ -41,9 +90,26 @@ export default function QRScanner({ onScanResult, isLoading = false }: QRScanner
     },
   ];
 
+  const stopCamera = useCallback(() => {
+    if (scanIntervalRef.current) {
+      window.clearInterval(scanIntervalRef.current);
+      scanIntervalRef.current = null;
+    }
+    if (videoRef.current?.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream;
+      stream.getTracks().forEach((track) => track.stop());
+      videoRef.current.srcObject = null;
+    }
+    setIsCameraActive(false);
+  }, []);
+
+  useEffect(() => {
+    return () => stopCamera();
+  }, [stopCamera]);
+
   const handleManualSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const idToVerify = manualId.trim() || "CRED-7F83A91";
+    const idToVerify = extractCredentialId(manualId) || manualId.trim() || "CRED-7F83A91";
     setManualId(idToVerify);
     onScanResult(idToVerify);
   };
@@ -53,150 +119,144 @@ export default function QRScanner({ onScanResult, isLoading = false }: QRScanner
     onScanResult(id);
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setUploadedFileName(file.name);
-    // Reset file input value so re-selecting the same file fires onChange
+    setUploadError(null);
+    setUploadSuccess(false);
     e.target.value = "";
-    setTimeout(() => {
-      if (file.name.toLowerCase().includes("evelyn")) {
-        onScanResult("CRED-9E24B10");
-      } else {
-        onScanResult("CRED-7F83A91");
-      }
-    }, 400);
+
+    const credentialId = await decodeQrFromFile(file);
+    if (credentialId) {
+      setUploadSuccess(true);
+      onScanResult(credentialId);
+    } else {
+      setUploadError("Could not read a Credential ID from this image. Try a sample preset or enter the ID manually.");
+    }
   };
 
   const startCamera = async () => {
     setCameraError(null);
-    setIsCameraActive(true);
+    stopCamera();
+
     try {
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-      } else {
-        setCameraError("Camera access is not supported by your current browser environment.");
+      if (!navigator.mediaDevices?.getUserMedia) {
+        setCameraError("Camera access is not supported by your browser.");
+        return;
       }
-    } catch (err: any) {
-      console.warn("Camera init note:", err);
-      setCameraError("Camera stream unavailable. You can upload a QR image or click a sample preset below!");
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment" },
+      });
+
+      if (!videoRef.current) return;
+
+      videoRef.current.srcObject = stream;
+      setIsCameraActive(true);
+
+      const BarcodeDetectorCtor = (window as Window & { BarcodeDetector?: new (opts: { formats: string[] }) => BarcodeDetectorLike }).BarcodeDetector;
+      if (!BarcodeDetectorCtor) {
+        setCameraError("Live QR decoding needs Chrome/Edge. Use sample presets or upload a QR image.");
+        return;
+      }
+
+      const detector = new BarcodeDetectorCtor({ formats: ["qr_code"] });
+      scanIntervalRef.current = window.setInterval(async () => {
+        if (!videoRef.current) return;
+        try {
+          const barcodes = await detector.detect(videoRef.current);
+          const text = barcodes[0]?.rawValue;
+          const id = text ? extractCredentialId(text) : null;
+          if (id) {
+            stopCamera();
+            onScanResult(id);
+          }
+        } catch {
+          // Ignore per-frame decode errors
+        }
+      }, 750);
+    } catch {
+      setCameraError("Camera stream unavailable. Upload a QR image or use a sample preset below.");
     }
   };
 
-  const stopCamera = () => {
-    if (videoRef.current && videoRef.current.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream;
-      stream.getTracks().forEach(track => track.stop());
-      videoRef.current.srcObject = null;
+  const switchMode = (mode: "id" | "camera" | "upload") => {
+    if (mode !== "camera") {
+      stopCamera();
     }
-    setIsCameraActive(false);
+    setActiveMode(mode);
+    setUploadError(null);
+    setUploadSuccess(false);
   };
 
   return (
     <div className="rounded-2xl glass-panel p-6 sm:p-8 border border-white/10 shadow-2xl bg-slate-900/90 space-y-6 text-left">
-      
-      {/* Header Tabs */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
-        <div>
-          <h3 className="text-lg font-extrabold text-white flex items-center gap-2">
-            <QrCode className="h-5 w-5 text-emerald-400" />
-            <span>Credential Verification Input</span>
-          </h3>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Query the BlockCert ledger by ID, live QR camera scan, or certificate file
-          </p>
+      <div className="flex items-center justify-between border-b border-white/10 pb-4">
+        <div className="flex items-center gap-2.5">
+          <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+            <QrCode className="h-5 w-5" />
+          </div>
+          <div>
+            <h3 className="text-base font-extrabold text-white">Credential Verification Input</h3>
+            <p className="text-[11px] text-slate-400">Enter ID, scan QR, or upload certificate image</p>
+          </div>
         </div>
-
-        {/* Tab Controls */}
-        <div className="inline-flex rounded-xl bg-slate-950 p-1 border border-slate-800 text-xs self-start sm:self-auto">
-          <button
-            type="button"
-            onClick={() => {
-              stopCamera();
-              setActiveMode("id");
-            }}
-            className={`px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer ${
-              activeMode === "id"
-                ? "bg-emerald-500 text-slate-950 shadow-md font-bold"
-                : "text-slate-400 hover:text-white"
-            }`}
-          >
-            Credential ID
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setActiveMode("camera");
-              startCamera();
-            }}
-            className={`px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
-              activeMode === "camera"
-                ? "bg-emerald-500 text-slate-950 shadow-md font-bold"
-                : "text-slate-400 hover:text-white"
-            }`}
-          >
-            <Camera className="h-3.5 w-3.5" />
-            <span>Camera</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              stopCamera();
-              setActiveMode("upload");
-            }}
-            className={`px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
-              activeMode === "upload"
-                ? "bg-emerald-500 text-slate-950 shadow-md font-bold"
-                : "text-slate-400 hover:text-white"
-            }`}
-          >
-            <Upload className="h-3.5 w-3.5" />
-            <span>Upload QR</span>
-          </button>
-        </div>
+        <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/30">
+          4-Point Check Ready
+        </span>
       </div>
 
-      {/* Mode 1: Permanent Credential ID Search */}
+      <div className="inline-flex rounded-xl bg-slate-950 p-1 border border-slate-800 text-xs font-semibold w-full sm:w-auto">
+        {([
+          { key: "id" as const, label: "Credential ID", icon: Search },
+          { key: "camera" as const, label: "Camera Scan", icon: Camera },
+          { key: "upload" as const, label: "Upload QR", icon: Upload },
+        ]).map(({ key, label, icon: Icon }) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => switchMode(key)}
+            className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg transition-all cursor-pointer ${
+              activeMode === key
+                ? "bg-emerald-500 text-slate-950 font-bold shadow-sm"
+                : "text-slate-400 hover:text-white"
+            }`}
+          >
+            <Icon className="h-3.5 w-3.5" />
+            <span>{label}</span>
+          </button>
+        ))}
+      </div>
+
       {activeMode === "id" && (
         <div className="space-y-4">
-          <form onSubmit={handleManualSubmit} className="relative flex items-center">
-            <div className="relative w-full">
-              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                <Search className="h-4 w-4" />
-              </div>
-              <input
-                type="text"
-                value={manualId}
-                onChange={(e) => setManualId(e.target.value)}
-                placeholder="Enter permanent Credential ID (e.g. CRED-7F83A91)"
-                className="w-full pl-10 pr-32 py-3.5 text-sm rounded-xl glass-panel text-white placeholder-slate-500 border border-slate-700 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 font-mono shadow-inner"
-              />
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="absolute right-1.5 top-1.5 bottom-1.5 px-4 rounded-lg bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-bold text-xs transition-colors flex items-center gap-1.5 cursor-pointer shadow-md shadow-emerald-500/20"
-              >
-                {isLoading ? (
-                  <RefreshCw className="h-4 w-4 animate-spin" />
-                ) : (
-                  <>
-                    <span>Verify</span>
-                    <ArrowRight className="h-3.5 w-3.5" />
-                  </>
-                )}
-              </button>
+          <form onSubmit={handleManualSubmit} className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+              <Search className="h-4 w-4" />
             </div>
+            <input
+              type="text"
+              value={manualId}
+              onChange={(e) => setManualId(e.target.value)}
+              placeholder="CRED-7F83A91 or paste verify URL"
+              className="w-full pl-10 pr-36 py-3.5 text-sm rounded-xl bg-slate-950 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 font-mono"
+            />
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="absolute right-1.5 top-1.5 bottom-1.5 px-4 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+            >
+              <span>{isLoading ? "Verifying..." : "Verify"}</span>
+              <ArrowRight className="h-3.5 w-3.5" />
+            </button>
           </form>
 
-          {/* Quick Demo Preset Shortcuts */}
-          <div className="pt-2">
-            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
               <Sparkles className="h-3.5 w-3.5 text-amber-400" />
-              <span>Quick Test Presets (1-Click Validation):</span>
+              <span>Sample Hackathon Presets</span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {samplePresets.map((p) => (
@@ -204,17 +264,15 @@ export default function QRScanner({ onScanResult, isLoading = false }: QRScanner
                   key={p.id}
                   type="button"
                   onClick={() => handlePresetSelect(p.id)}
-                  className="p-2.5 rounded-xl bg-slate-950/70 hover:bg-emerald-950/40 border border-slate-800 hover:border-emerald-500/40 text-left transition-all cursor-pointer flex items-center justify-between group"
+                  className="text-left p-3 rounded-xl bg-slate-950 border border-slate-800 hover:border-emerald-500/40 transition-all cursor-pointer group"
                 >
-                  <div>
-                    <div className="text-xs font-mono font-bold text-emerald-400 group-hover:text-emerald-300">
-                      {p.id}
-                    </div>
-                    <div className="text-[11px] text-slate-400">{p.label}</div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-mono text-xs font-bold text-amber-300">{p.id}</span>
+                    <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                      {p.badge}
+                    </span>
                   </div>
-                  <span className="text-[10px] bg-slate-800 group-hover:bg-emerald-500/20 text-slate-300 group-hover:text-emerald-300 px-2 py-0.5 rounded font-mono">
-                    {p.badge}
-                  </span>
+                  <div className="text-[11px] text-slate-400 mt-1 group-hover:text-slate-300">{p.label}</div>
                 </button>
               ))}
             </div>
@@ -222,35 +280,26 @@ export default function QRScanner({ onScanResult, isLoading = false }: QRScanner
         </div>
       )}
 
-      {/* Mode 2: Live Camera QR Scanner */}
       {activeMode === "camera" && (
-        <div className="space-y-4 text-center">
-          <div className="relative w-full max-w-sm mx-auto h-64 bg-slate-950 rounded-2xl border-2 border-dashed border-emerald-500/40 overflow-hidden flex flex-col items-center justify-center p-4">
-            
-            {/* Viewfinder Target */}
+        <div className="space-y-4">
+          <div className="relative aspect-video rounded-2xl bg-slate-950 border border-slate-800 overflow-hidden flex items-center justify-center">
             <div className="absolute inset-8 border-2 border-emerald-400/60 rounded-xl pointer-events-none animate-pulse">
-              <span className="absolute -top-1 -left-1 w-3 h-3 border-t-2 border-l-2 border-emerald-400"></span>
-              <span className="absolute -top-1 -right-1 w-3 h-3 border-t-2 border-r-2 border-emerald-400"></span>
-              <span className="absolute -bottom-1 -left-1 w-3 h-3 border-b-2 border-l-2 border-emerald-400"></span>
-              <span className="absolute -bottom-1 -right-1 w-3 h-3 border-b-2 border-r-2 border-emerald-400"></span>
+              <span className="absolute -top-1 -left-1 w-3 h-3 border-t-2 border-l-2 border-emerald-400" />
+              <span className="absolute -top-1 -right-1 w-3 h-3 border-t-2 border-r-2 border-emerald-400" />
+              <span className="absolute -bottom-1 -left-1 w-3 h-3 border-b-2 border-l-2 border-emerald-400" />
+              <span className="absolute -bottom-1 -right-1 w-3 h-3 border-b-2 border-r-2 border-emerald-400" />
             </div>
 
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              muted
-              className="absolute inset-0 w-full h-full object-cover"
-            />
+            <video ref={videoRef} autoPlay playsInline muted className="absolute inset-0 w-full h-full object-cover" />
 
             {!isCameraActive && (
-              <div className="space-y-2 z-10">
+              <div className="space-y-2 z-10 text-center">
                 <Camera className="h-10 w-10 text-slate-500 mx-auto" />
                 <p className="text-xs text-slate-400">Camera preview inactive</p>
                 <button
                   type="button"
                   onClick={startCamera}
-                  className="px-4 py-1.5 rounded-lg bg-emerald-500 text-slate-950 text-xs font-bold"
+                  className="px-4 py-1.5 rounded-lg bg-emerald-500 text-slate-950 text-xs font-bold cursor-pointer"
                 >
                   Start Camera
                 </button>
@@ -264,28 +313,22 @@ export default function QRScanner({ onScanResult, isLoading = false }: QRScanner
                 <button
                   type="button"
                   onClick={() => handlePresetSelect("CRED-7F83A91")}
-                  className="px-3 py-1 rounded bg-emerald-500 text-slate-950 text-xs font-bold"
+                  className="px-3 py-1 rounded bg-emerald-500 text-slate-950 text-xs font-bold cursor-pointer"
                 >
-                  Simulate QR Scan (Rahul Sharma)
+                  Use Sample: CRED-7F83A91
                 </button>
               </div>
             )}
           </div>
 
-          <div className="flex items-center justify-center gap-2">
-            <button
-              type="button"
-              onClick={() => handlePresetSelect("CRED-7F83A91")}
-              className="text-xs text-emerald-400 hover:underline flex items-center gap-1 font-semibold cursor-pointer"
-            >
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              <span>Simulate instant QR detection on camera</span>
-            </button>
-          </div>
+          {isCameraActive && !cameraError && (
+            <p className="text-xs text-center text-emerald-400 font-mono">
+              Point camera at BlockCert QR code — auto-detecting...
+            </p>
+          )}
         </div>
       )}
 
-      {/* Mode 3: QR Image Upload / Drag & Drop */}
       {activeMode === "upload" && (
         <div className="space-y-4">
           <div
@@ -295,7 +338,7 @@ export default function QRScanner({ onScanResult, isLoading = false }: QRScanner
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*,.pdf"
+              accept="image/*"
               onChange={handleFileUpload}
               className="hidden"
             />
@@ -306,20 +349,23 @@ export default function QRScanner({ onScanResult, isLoading = false }: QRScanner
               <div className="text-sm font-bold text-white">
                 {uploadedFileName ? uploadedFileName : "Click or drag QR certificate image"}
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">
-                PNG, JPG, WEBP, or scanned certificate document
-              </p>
+              <p className="text-xs text-slate-400 mt-0.5">PNG, JPG, or WEBP with BlockCert QR code</p>
             </div>
-            {uploadedFileName && (
+            {uploadSuccess && (
               <div className="inline-flex items-center gap-1 text-xs text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/30">
                 <CheckCircle2 className="h-3.5 w-3.5" />
-                <span>QR parsed successfully</span>
+                <span>Credential ID extracted — verifying...</span>
+              </div>
+            )}
+            {uploadError && (
+              <div className="inline-flex items-center gap-1 text-xs text-rose-400 bg-rose-500/10 px-3 py-1 rounded-full border border-rose-500/30">
+                <AlertCircle className="h-3.5 w-3.5" />
+                <span>{uploadError}</span>
               </div>
             )}
           </div>
         </div>
       )}
-
     </div>
   );
 }

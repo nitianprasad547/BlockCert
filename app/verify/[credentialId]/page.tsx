@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import DemoModal, { ModalType } from "@/components/DemoModal";
 import VerificationResult from "@/components/VerificationResult";
 import BlockchainExplorerModal from "@/components/BlockchainExplorerModal";
 import DiscrepancyModal from "@/components/DiscrepancyModal";
@@ -19,20 +20,26 @@ export default function DirectVerifyPage() {
 
   const [loading, setLoading] = useState(true);
   const [result, setResult] = useState<VerificationResultType | null>(null);
+  const [verifyError, setVerifyError] = useState<string | null>(null);
   const [isSimulatingTamper, setIsSimulatingTamper] = useState(false);
 
   // Modals
   const [isChainExplorerOpen, setIsChainExplorerOpen] = useState(false);
   const [isDiscrepancyOpen, setIsDiscrepancyOpen] = useState(false);
+  const [activeModal, setActiveModal] = useState<ModalType>(null);
 
   const performVerification = async (tamperPayload?: Partial<AcademicRecordData> | null) => {
     if (!credentialId) return;
     setLoading(true);
+    setVerifyError(null);
     try {
       const res = await api.verifyCredential(credentialId, tamperPayload || undefined);
       setResult(res);
       setIsSimulatingTamper(!!tamperPayload);
     } catch (err) {
+      const message = err instanceof Error ? err.message : "Verification failed. Please try again.";
+      setVerifyError(message);
+      setResult(null);
       console.error("Direct verification error", err);
     } finally {
       setLoading(false);
@@ -47,7 +54,7 @@ export default function DirectVerifyPage() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 selection:bg-emerald-500 selection:text-slate-950 bg-grid-pattern relative flex flex-col justify-between">
-      <Navbar />
+      <Navbar onOpenDemoModal={() => setActiveModal("demo")} />
 
       <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16 sm:py-20 flex-1 space-y-8">
         
@@ -91,6 +98,17 @@ export default function DirectVerifyPage() {
               isSimulatingTamper={isSimulatingTamper}
             />
           </div>
+        ) : verifyError ? (
+          <div className="py-20 text-center space-y-3">
+            <p className="text-rose-300">{verifyError}</p>
+            <button
+              type="button"
+              onClick={() => performVerification(null)}
+              className="px-4 py-2 rounded-xl bg-emerald-500 text-slate-950 text-xs font-bold cursor-pointer"
+            >
+              Retry Verification
+            </button>
+          </div>
         ) : (
           <div className="py-20 text-center text-slate-400">
             <p>Could not verify credential. Please try again.</p>
@@ -113,7 +131,11 @@ export default function DirectVerifyPage() {
 
       </main>
 
-      <Footer />
+      <Footer
+        onOpenDemoModal={() => setActiveModal("demo")}
+        onOpenWhitepaperModal={() => setActiveModal("whitepaper")}
+      />
+      <DemoModal type={activeModal} onClose={() => setActiveModal(null)} />
     </div>
   );
 }

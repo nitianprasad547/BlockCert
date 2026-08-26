@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { 
   Building2, 
@@ -10,14 +10,15 @@ import {
   Clock, 
   Plus, 
   RefreshCw,
-  Search,
-  Filter,
   Check,
   ExternalLink,
   Lock,
-  ArrowRight,
-  Sparkles
+  Sparkles,
+  AlertCircle,
+  ShieldAlert,
 } from "lucide-react";
+import { api } from "@/lib/api";
+import { Credential } from "@/types";
 
 interface RecordItem {
   id: string;
@@ -29,76 +30,100 @@ interface RecordItem {
   timestamp: string;
 }
 
-const initialRecords: RecordItem[] = [
-  {
-    id: "CRED-7F83A91",
-    name: "Rahul Sharma",
-    degree: "B.Tech Computer Science",
-    hash: "a71f92e48b11c97a5482e987c61d5203",
-    version: 1,
-    status: "ACTIVE",
-    timestamp: "2 mins ago"
-  },
-  {
-    id: "CRED-9E24B10",
-    name: "Dr. Evelyn Vance",
-    degree: "PhD Computer Science & Cryptography",
-    hash: "f3c8091a45b76e820194857620194857",
-    version: 1,
-    status: "ACTIVE",
-    timestamp: "15 mins ago"
-  },
-  {
-    id: "CRED-4D88A12",
-    name: "Ananya Patel",
-    degree: "M.Sc. Artificial Intelligence",
-    hash: "0xea901af56b7890c1f12d849201948571",
-    version: 1,
-    status: "PROCESSING",
-    timestamp: "Just now"
-  }
-];
+function credentialToRecord(cred: Credential): RecordItem {
+  return {
+    id: cred.credential_id,
+    name: cred.latest_version.student_name,
+    degree: cred.latest_version.degree,
+    hash: cred.latest_version.credential_hash,
+    version: cred.current_version,
+    status: cred.status === "REVOKED" ? "REVOKED" : "ACTIVE",
+    timestamp: new Date(cred.updated_at).toLocaleDateString(),
+  };
+}
 
 export default function RegistrarDashboard() {
-  const [records, setRecords] = useState<RecordItem[]>(initialRecords);
-  const [filter, setFilter] = useState<"ALL" | "ACTIVE" | "PROCESSING">("ALL");
+  const [records, setRecords] = useState<RecordItem[]>([]);
+  const [filter, setFilter] = useState<"ALL" | "ACTIVE" | "REVOKED">("ALL");
   const [isSigning, setIsSigning] = useState(false);
   const [signedSuccess, setSignedSuccess] = useState(false);
   const [newStudentName, setNewStudentName] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
+  const [issuing, setIssuing] = useState(false);
+  const [issueError, setIssueError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const loadRecords = useCallback(async () => {
+    setLoading(true);
+    try {
+      const creds = await api.getCredentials();
+      setRecords(creds.map(credentialToRecord));
+    } catch (err) {
+      console.error("Failed to load credentials", err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadRecords();
+
+    const handleUpdate = () => loadRecords();
+    window.addEventListener("blockcert:credentials-updated", handleUpdate);
+    return () => window.removeEventListener("blockcert:credentials-updated", handleUpdate);
+  }, [loadRecords]);
 
   const filteredRecords = records.filter(r => {
     if (filter === "ALL") return true;
     return r.status === filter;
   });
 
-  const handleBatchSign = () => {
+  const handleBatchSign = async () => {
     setIsSigning(true);
-    setTimeout(() => {
-      setRecords(prev => prev.map(r => ({ ...r, status: "ACTIVE" as const })));
-      setIsSigning(false);
-      setSignedSuccess(true);
+    try {
+      const validation = await api.validateBlockchain();
+      await loadRecords();
+      setSignedSuccess(validation.is_valid);
       setTimeout(() => setSignedSuccess(false), 3000);
-    }, 1000);
+    } catch {
+      setSignedSuccess(false);
+    } finally {
+      setIsSigning(false);
+    }
   };
 
-  const handleAddRecord = (e: React.FormEvent) => {
+  const handleAddRecord = async (e: React.FormEvent) => {
     e.preventDefault();
-    const name = newStudentName.trim() || "New Graduate Recipient";
+    const name = newStudentName.trim();
+    if (!name) {
+      setIssueError("Enter a student name to issue a credential.");
+      return;
+    }
 
-    const newRec: RecordItem = {
-      id: `CRED-${Math.random().toString(16).substring(2, 9).toUpperCase()}`,
-      name: name,
-      degree: "B.Tech Electrical & Computer Eng",
-      hash: `bc${Math.random().toString(16).substring(2, 18)}`,
-      version: 1,
-      status: "PROCESSING",
-      timestamp: "Just now"
-    };
-
-    setRecords([newRec, ...records]);
-    setNewStudentName("");
-    setShowAddForm(false);
+    setIssuing(true);
+    setIssueError(null);
+    try {
+      const rollSuffix = Math.random().toString(16).substring(2, 6).toUpperCase();
+      await api.issueCredential({
+        student_name: name,
+        student_id_roll: `2026-CS-${rollSuffix}`,
+        degree: "Bachelor of Technology",
+        department_branch: "Computer Science & Engineering",
+        cgpa: 8.5,
+        graduation_year: 2026,
+        enrollment_year: 2022,
+        classification: "First Class",
+        major_specialization: "Distributed Systems",
+      });
+      setNewStudentName("");
+      setShowAddForm(false);
+      await loadRecords();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to issue credential.";
+      setIssueError(message);
+    } finally {
+      setIssuing(false);
+    }
   };
 
   return (
@@ -146,7 +171,7 @@ export default function RegistrarDashboard() {
               
               {/* Filter Tabs */}
               <div className="inline-flex rounded-lg bg-slate-950 p-1 border border-slate-800 text-xs">
-                {(["ALL", "ACTIVE", "PROCESSING"] as const).map(tab => (
+                {(["ALL", "ACTIVE", "REVOKED"] as const).map(tab => (
                   <button
                     key={tab}
                     type="button"
@@ -203,7 +228,7 @@ export default function RegistrarDashboard() {
 
           {/* Quick Add Form Drawer (Interactive) */}
           {showAddForm && (
-            <div className="bg-slate-950/80 p-4 border-b border-emerald-500/30 animate-fadeIn">
+            <div className="bg-slate-950/80 p-4 border-b border-emerald-500/30 animate-fadeIn space-y-2">
               <form onSubmit={handleAddRecord} className="flex flex-col sm:flex-row items-center gap-3">
                 <input
                   type="text"
@@ -214,18 +239,28 @@ export default function RegistrarDashboard() {
                 />
                 <button
                   type="submit"
-                  className="w-full sm:w-auto px-4 py-2 rounded-lg bg-emerald-500 text-slate-950 text-xs font-bold hover:bg-emerald-400 cursor-pointer"
+                  disabled={issuing}
+                  className="w-full sm:w-auto px-4 py-2 rounded-lg bg-emerald-500 text-slate-950 text-xs font-bold hover:bg-emerald-400 cursor-pointer disabled:opacity-50"
                 >
-                  Generate &amp; Sign Credential
+                  {issuing ? "Issuing..." : "Generate & Sign Credential"}
                 </button>
                 <button
                   type="button"
-                  onClick={() => setShowAddForm(false)}
+                  onClick={() => {
+                    setShowAddForm(false);
+                    setIssueError(null);
+                  }}
                   className="text-xs text-slate-400 hover:text-white px-2 py-1 cursor-pointer"
                 >
                   Cancel
                 </button>
               </form>
+              {issueError && (
+                <p className="text-xs text-rose-400 flex items-center gap-1.5">
+                  <AlertCircle className="h-3.5 w-3.5" />
+                  <span>{issueError}</span>
+                </p>
+              )}
             </div>
           )}
 
@@ -244,7 +279,20 @@ export default function RegistrarDashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5 text-sm font-medium">
-                  {filteredRecords.map((row) => (
+                  {loading ? (
+                    <tr>
+                      <td colSpan={6} className="py-12 text-center text-slate-400 text-xs">
+                        Loading credential registry...
+                      </td>
+                    </tr>
+                  ) : filteredRecords.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-12 text-center text-slate-400 text-xs">
+                        No credentials match this filter.
+                      </td>
+                    </tr>
+                  ) : (
+                  filteredRecords.map((row) => (
                     <tr key={row.id} className="hover:bg-white/[0.02] transition-colors">
                       <td className="py-4 px-4 font-bold text-white flex items-center gap-3">
                         <div className="h-8 w-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs border border-emerald-500/30">
@@ -264,6 +312,11 @@ export default function RegistrarDashboard() {
                             <CheckCircle2 className="h-3.5 w-3.5" />
                             <span>ACTIVE</span>
                           </span>
+                        ) : row.status === "REVOKED" ? (
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-500/10 px-3 py-1 text-xs font-bold text-rose-400 border border-rose-500/30">
+                            <ShieldAlert className="h-3.5 w-3.5" />
+                            <span>REVOKED</span>
+                          </span>
                         ) : (
                           <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 px-3 py-1 text-xs font-bold text-amber-400 border border-amber-500/30 animate-pulse">
                             <Clock className="h-3.5 w-3.5" />
@@ -281,7 +334,8 @@ export default function RegistrarDashboard() {
                         </Link>
                       </td>
                     </tr>
-                  ))}
+                  ))
+                  )}
                 </tbody>
               </table>
             </div>
