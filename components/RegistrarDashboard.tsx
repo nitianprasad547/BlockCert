@@ -33,12 +33,12 @@ interface RecordItem {
 function credentialToRecord(cred: Credential): RecordItem {
   return {
     id: cred.credential_id,
-    name: cred.latest_version.student_name,
-    degree: cred.latest_version.degree,
-    hash: cred.latest_version.credential_hash,
-    version: cred.current_version,
+    name: cred.latest_version?.student_name || "Graduate Student",
+    degree: cred.latest_version?.degree || "Degree",
+    hash: cred.latest_version?.credential_hash || "",
+    version: cred.current_version || 1,
     status: cred.status === "REVOKED" ? "REVOKED" : "ACTIVE",
-    timestamp: new Date(cred.updated_at).toLocaleDateString(),
+    timestamp: new Date(cred.updated_at || Date.now()).toLocaleDateString(),
   };
 }
 
@@ -54,7 +54,6 @@ export default function RegistrarDashboard() {
   const [loading, setLoading] = useState(true);
 
   const loadRecords = useCallback(async () => {
-    setLoading(true);
     try {
       const creds = await api.getCredentials();
       setRecords(creds.map(credentialToRecord));
@@ -66,11 +65,22 @@ export default function RegistrarDashboard() {
   }, []);
 
   useEffect(() => {
-    loadRecords();
+    let isMounted = true;
+    api.getCredentials().then((creds) => {
+      if (isMounted) {
+        setRecords(creds.map(credentialToRecord));
+        setLoading(false);
+      }
+    }).catch(() => {
+      if (isMounted) setLoading(false);
+    });
 
     const handleUpdate = () => loadRecords();
     window.addEventListener("blockcert:credentials-updated", handleUpdate);
-    return () => window.removeEventListener("blockcert:credentials-updated", handleUpdate);
+    return () => {
+      isMounted = false;
+      window.removeEventListener("blockcert:credentials-updated", handleUpdate);
+    };
   }, [loadRecords]);
 
   const filteredRecords = records.filter(r => {

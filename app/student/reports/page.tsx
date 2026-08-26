@@ -23,11 +23,10 @@ export default function StudentReportsTrackerPage() {
   const studentName = api.getCurrentUser()?.name || "Rahul Sharma";
 
   const loadReports = async () => {
-    setLoading(true);
-    setLoadError(null);
     try {
       const data = await api.getReports();
       setReports(data);
+      setLoadError(null);
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : "Failed to load reports.");
       console.error("Error loading reports", err);
@@ -37,7 +36,25 @@ export default function StudentReportsTrackerPage() {
   };
 
   useEffect(() => {
-    loadReports();
+    let isMounted = true;
+    api
+      .getReports()
+      .then((data) => {
+        if (isMounted) {
+          setReports(data);
+          setLoadError(null);
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        if (isMounted) {
+          setLoadError(err instanceof Error ? err.message : "Failed to load reports.");
+          setLoading(false);
+        }
+      });
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   return (

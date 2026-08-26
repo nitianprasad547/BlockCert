@@ -43,7 +43,6 @@ export default function InstituteCredentialDetailPage() {
 
   const loadCredential = async () => {
     if (!id) return;
-    setLoading(true);
     try {
       const data = await api.getCredentialById(id);
       setCredential(data);
@@ -55,7 +54,24 @@ export default function InstituteCredentialDetailPage() {
   };
 
   useEffect(() => {
-    loadCredential();
+    if (!id) return;
+    let isMounted = true;
+    api.getCredentialById(id)
+      .then((data) => {
+        if (isMounted) {
+          setCredential(data);
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        if (isMounted) {
+          console.error("Error loading credential", err);
+          setLoading(false);
+        }
+      });
+    return () => {
+      isMounted = false;
+    };
   }, [id]);
 
   const handleRevoke = async (e: React.FormEvent) => {

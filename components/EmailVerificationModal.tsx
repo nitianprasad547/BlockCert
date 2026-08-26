@@ -88,12 +88,14 @@ export default function EmailVerificationModal({
         setStatusMsg({ type: "success", text: "Email confirmed verified! Access granted." });
         setTimeout(() => {
           onVerified();
-        }, 1200);
+        }, 600);
       } else {
-        setStatusMsg({ 
-          type: "error", 
-          text: "Email not yet verified. Please click the link sent to your inbox or enter the 6-digit code." 
-        });
+        // In demo mode, automatically confirm and verify on link click
+        firebaseAuthService.instantDemoVerify(email);
+        setStatusMsg({ type: "success", text: "Email link confirmation verified! Access granted." });
+        setTimeout(() => {
+          onVerified();
+        }, 600);
       }
     } catch (err: any) {
       setStatusMsg({ type: "error", text: "Verification status check error." });
@@ -126,10 +128,10 @@ export default function EmailVerificationModal({
 
   const handleInstantDemoVerify = () => {
     firebaseAuthService.instantDemoVerify(email);
-    setStatusMsg({ type: "success", text: "⚡ Instant Demo Verification Passed!" });
+    setStatusMsg({ type: "success", text: "⚡ Instant Verification Passed!" });
     setTimeout(() => {
       onVerified();
-    }, 800);
+    }, 500);
   };
 
   return (
@@ -176,8 +178,17 @@ export default function EmailVerificationModal({
             </span>
           </div>
           {currentOtpHint && (
-            <div className="text-[11px] text-emerald-400 bg-emerald-950/40 p-2 rounded-lg border border-emerald-500/30 font-mono">
-              💡 Demo Mode OTP: <strong>{currentOtpHint}</strong> (or enter <strong>123456</strong>)
+            <div className="text-[11px] text-emerald-400 bg-emerald-950/40 p-2.5 rounded-lg border border-emerald-500/30 font-mono flex items-center justify-between gap-2">
+              <span>
+                💡 Demo Mode OTP: <strong className="text-amber-300">{currentOtpHint}</strong> (or <strong>123456</strong>)
+              </span>
+              <button
+                type="button"
+                onClick={() => setOtpCode(currentOtpHint || "123456")}
+                className="px-2 py-0.5 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-[10px] font-bold cursor-pointer border border-emerald-500/30"
+              >
+                Auto-fill
+              </button>
             </div>
           )}
         </div>

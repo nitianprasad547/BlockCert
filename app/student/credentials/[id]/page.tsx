@@ -23,20 +23,29 @@ export default function StudentCredentialDetailPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isDiscrepancyOpen, setIsDiscrepancyOpen] = useState(false);
   const [isChainOpen, setIsChainOpen] = useState(false);
-  const [studentName, setStudentName] = useState(getStudentName());
+  const [studentName] = useState(() => (typeof window !== "undefined" ? api.getCurrentUser()?.name || "Rahul Sharma" : "Rahul Sharma"));
 
   useEffect(() => {
     if (!id) return;
-    setStudentName(getStudentName());
-    setLoading(true);
-    setLoadError(null);
+    let isMounted = true;
     api
       .getCredentialById(id)
-      .then((data) => setCredential(data))
-      .catch((err) => {
-        setLoadError(err instanceof Error ? err.message : "Failed to load credential.");
+      .then((data) => {
+        if (isMounted) {
+          setCredential(data);
+          setLoadError(null);
+          setLoading(false);
+        }
       })
-      .finally(() => setLoading(false));
+      .catch((err) => {
+        if (isMounted) {
+          setLoadError(err instanceof Error ? err.message : "Failed to load credential.");
+          setLoading(false);
+        }
+      });
+    return () => {
+      isMounted = false;
+    };
   }, [id]);
 
   if (loading) {

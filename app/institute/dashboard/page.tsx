@@ -29,8 +29,6 @@ export default function InstituteDashboard() {
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const loadData = async () => {
-    setLoading(true);
-    setLoadError(null);
     try {
       const [creds, reps, blks] = await Promise.all([
         api.getCredentials(),
@@ -40,6 +38,7 @@ export default function InstituteDashboard() {
       setCredentials(creds);
       setReports(reps);
       setBlocks(blks);
+      setLoadError(null);
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : "Failed to load dashboard data.");
       console.error("Dashboard data load error", err);
@@ -49,11 +48,33 @@ export default function InstituteDashboard() {
   };
 
   useEffect(() => {
-    loadData();
+    let isMounted = true;
+    Promise.all([
+      api.getCredentials(),
+      api.getReports(),
+      api.getBlockchainBlocks(),
+    ])
+      .then(([creds, reps, blks]) => {
+        if (isMounted) {
+          setCredentials(creds);
+          setReports(reps);
+          setBlocks(blks);
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        if (isMounted) {
+          setLoadError(err instanceof Error ? err.message : "Failed to load dashboard data.");
+          setLoading(false);
+        }
+      });
 
     const handleUpdate = () => loadData();
     window.addEventListener("blockcert:credentials-updated", handleUpdate);
-    return () => window.removeEventListener("blockcert:credentials-updated", handleUpdate);
+    return () => {
+      isMounted = false;
+      window.removeEventListener("blockcert:credentials-updated", handleUpdate);
+    };
   }, []);
 
   const totalIssued = credentials.length;
@@ -175,20 +196,20 @@ export default function InstituteDashboard() {
                     <tr key={cred.credential_id} className="hover:bg-white/[0.02] transition-colors">
                       <td className="py-4 px-4 font-bold text-white flex items-center gap-3">
                         <div className="h-8 w-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs border border-emerald-500/30">
-                          {cred.latest_version.student_name.charAt(0)}
+                          {(cred.latest_version?.student_name || "S").charAt(0)}
                         </div>
                         <div>
-                          <div>{cred.latest_version.student_name}</div>
-                          <div className="text-[11px] font-mono text-slate-400">{cred.latest_version.roll_number}</div>
+                          <div>{cred.latest_version?.student_name || "Student"}</div>
+                          <div className="text-[11px] font-mono text-slate-400">{cred.latest_version?.roll_number || "—"}</div>
                         </div>
                       </td>
                       <td className="py-4 px-4 font-mono font-bold text-amber-300">
                         {cred.credential_id}
                       </td>
                       <td className="py-4 px-4 space-y-0.5">
-                        <div className="text-slate-200 font-semibold">{cred.latest_version.degree}</div>
+                        <div className="text-slate-200 font-semibold">{cred.latest_version?.degree || "Degree"}</div>
                         <div className="text-slate-400 text-[11px]">
-                          CGPA: <strong className="text-amber-300">{Number(cred.latest_version.cgpa).toFixed(2)}</strong>
+                          CGPA: <strong className="text-amber-300">{Number(cred.latest_version?.cgpa || 0).toFixed(2)}</strong>
                         </div>
                       </td>
                       <td className="py-4 px-4 text-center space-y-1">

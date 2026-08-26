@@ -27,12 +27,13 @@ interface NavbarProps {
 
 export default function Navbar({ onOpenDemoModal }: NavbarProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(() => (typeof window !== "undefined" ? api.getCurrentUser() : null));
   const pathname = usePathname();
   const router = useRouter();
 
   useEffect(() => {
-    setCurrentUser(api.getCurrentUser());
+    const user = api.getCurrentUser();
+    setCurrentUser((prev) => (prev?.user_id !== user?.user_id || prev?.name !== user?.name ? user : prev));
   }, [pathname]);
 
   const handleLogout = () => {
@@ -166,11 +167,12 @@ export default function Navbar({ onOpenDemoModal }: NavbarProps) {
 
           {onOpenDemoModal && (
             <button
+              id="navbar-schedule-demo-btn"
               type="button"
               onClick={onOpenDemoModal}
               className="group hidden lg:inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-2 text-sm font-semibold text-slate-950 shadow-md shadow-emerald-500/20 hover:from-emerald-400 hover:to-teal-400 transition-all cursor-pointer"
             >
-              <span>Schedule Demo</span>
+              <span>Live Workflow Demo</span>
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
             </button>
           )}

@@ -88,6 +88,11 @@ export default function QRScanner({ onScanResult, isLoading = false }: QRScanner
       label: "Dr. Evelyn Vance (PhD - Active)",
       badge: "Cryptographic Proof",
     },
+    {
+      id: "CRED-4D88A12",
+      label: "Ananya Patel (M.Sc. AI - Active)",
+      badge: "New Issue",
+    },
   ];
 
   const stopCamera = useCallback(() => {
@@ -109,8 +114,9 @@ export default function QRScanner({ onScanResult, isLoading = false }: QRScanner
 
   const handleManualSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const idToVerify = extractCredentialId(manualId) || manualId.trim() || "CRED-7F83A91";
-    setManualId(idToVerify);
+    const clean = manualId.trim();
+    if (!clean) return;
+    const idToVerify = extractCredentialId(clean) || clean;
     onScanResult(idToVerify);
   };
 
