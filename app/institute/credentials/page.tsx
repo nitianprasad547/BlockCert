@@ -14,40 +14,57 @@ import {
   Layers,
   Edit,
   Eye,
-  FileCheck
+  FileCheck,
+  Building2,
+  KeyRound,
+  ShieldCheck,
 } from "lucide-react";
-import { Credential } from "@/types";
+import { Credential, Institution } from "@/types";
 import { api } from "@/lib/api";
 import { formatHash } from "@/lib/crypto";
 
 export default function InstituteCredentialsPage() {
   const [credentials, setCredentials] = useState<Credential[]>([]);
+  const [institutions, setInstitutions] = useState<Institution[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"ALL" | "ACTIVE" | "REVOKED">("ALL");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const loadCredentials = () => {
+    const loadData = async () => {
       setLoading(true);
-      api.getCredentials().then((data) => {
-        setCredentials(data);
+      try {
+        const [creds, insts] = await Promise.all([
+          api.getCredentials(),
+          api.getInstitutions(),
+        ]);
+        setCredentials(creds);
+        setInstitutions(insts);
+      } catch (err) {
+        console.error("Failed to load registry data", err);
+      } finally {
         setLoading(false);
-      });
+      }
     };
 
-    loadCredentials();
+    loadData();
 
-    const handleUpdate = () => loadCredentials();
+    const handleUpdate = () => loadData();
     window.addEventListener("blockcert:credentials-updated", handleUpdate);
     return () => window.removeEventListener("blockcert:credentials-updated", handleUpdate);
   }, []);
 
   const filtered = credentials.filter((c) => {
+    const name = c.latest_version?.student_name || "";
+    const roll = c.latest_version?.roll_number || "";
+    const degree = c.latest_version?.degree || "";
+    const q = searchQuery.toLowerCase();
+
     const matchesSearch =
-      c.credential_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.latest_version.student_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.latest_version.roll_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.latest_version.degree.toLowerCase().includes(searchQuery.toLowerCase());
+      c.credential_id.toLowerCase().includes(q) ||
+      name.toLowerCase().includes(q) ||
+      roll.toLowerCase().includes(q) ||
+      degree.toLowerCase().includes(q);
 
     const matchesStatus = statusFilter === "ALL" || c.status === statusFilter;
     return matchesSearch && matchesStatus;
@@ -75,6 +92,68 @@ export default function InstituteCredentialsPage() {
           <span>Issue New Credential</span>
         </Link>
       </div>
+
+      {/* Registered Institutions Network Panel */}
+      {institutions.length > 0 && (
+        <div className="rounded-3xl glass-panel p-5 sm:p-6 border border-emerald-500/20 bg-slate-900/80 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <Building2 className="h-5 w-5 text-emerald-400" />
+              <div>
+                <h2 className="text-sm font-extrabold text-white">
+                  Registered Issuing Institutions ({institutions.length})
+                </h2>
+                <p className="text-[11px] text-slate-400">
+                  Institutions with authorized Ed25519 signing keys anchored in the network database
+                </p>
+              </div>
+            </div>
+            <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-500/10 text-[10px] font-bold text-emerald-400 border border-emerald-500/30">
+              <ShieldCheck className="h-3 w-3" />
+              Live DB Synced
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {institutions.map((inst) => (
+              <div
+                key={inst.institution_id}
+                className="p-3.5 rounded-2xl bg-slate-950/80 border border-white/5 hover:border-emerald-500/30 transition-all space-y-2"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="text-xs font-bold text-white truncate" title={inst.name}>
+                      {inst.name}
+                    </div>
+                    <div className="text-[10px] font-mono text-emerald-400 font-semibold">
+                      {inst.institution_id} • {inst.code}
+                    </div>
+                  </div>
+                  <span className="shrink-0 px-2 py-0.5 rounded text-[9px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                    VERIFIED
+                  </span>
+                </div>
+
+                <div className="text-[10px] text-slate-400 truncate font-mono">
+                  {inst.official_email}
+                </div>
+
+                {inst.public_key && (
+                  <div className="pt-1.5 border-t border-white/5 flex items-center justify-between text-[10px] text-slate-500 font-mono">
+                    <span className="flex items-center gap-1">
+                      <KeyRound className="h-3 w-3 text-slate-400" />
+                      Key:
+                    </span>
+                    <span className="text-slate-300" title={inst.public_key}>
+                      {inst.public_key.substring(0, 14)}...
+                    </span>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Search & Filter Controls */}
       <div className="rounded-2xl glass-panel p-4 border border-white/10 bg-slate-900/80 flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -147,11 +226,11 @@ export default function InstituteCredentialsPage() {
                   <tr key={cred.credential_id} className="hover:bg-white/[0.02] transition-colors">
                     <td className="py-4 px-4 font-bold text-white flex items-center gap-3">
                       <div className="h-9 w-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs border border-emerald-500/30">
-                        {cred.latest_version.student_name.charAt(0)}
+                        {(cred.latest_version?.student_name || "S").charAt(0)}
                       </div>
                       <div>
-                        <div className="text-sm font-bold">{cred.latest_version.student_name}</div>
-                        <div className="text-[11px] font-mono text-slate-400">{cred.latest_version.roll_number}</div>
+                        <div className="text-sm font-bold">{cred.latest_version?.student_name || "Unnamed Student"}</div>
+                        <div className="text-[11px] font-mono text-slate-400">{cred.latest_version?.roll_number || "—"}</div>
                       </div>
                     </td>
 
@@ -160,15 +239,15 @@ export default function InstituteCredentialsPage() {
                     </td>
 
                     <td className="py-4 px-4 space-y-0.5">
-                      <div className="text-slate-200 font-semibold">{cred.latest_version.degree}</div>
-                      <div className="text-slate-400 text-[11px]">{cred.latest_version.department}</div>
+                      <div className="text-slate-200 font-semibold">{cred.latest_version?.degree || "Degree"}</div>
+                      <div className="text-slate-400 text-[11px]">{cred.latest_version?.department || "Department"}</div>
                     </td>
 
                     <td className="py-4 px-4 font-semibold">
                       <div className="text-amber-300 font-bold text-xs">
-                        {Number(cred.latest_version.cgpa).toFixed(2)} / 10.0
+                        {Number(cred.latest_version?.cgpa || 0).toFixed(2)} / 10.0
                       </div>
-                      <div className="text-[10px] text-slate-400">Class of {cred.latest_version.graduation_year}</div>
+                      <div className="text-[10px] text-slate-400">Class of {cred.latest_version?.graduation_year || 2026}</div>
                     </td>
 
                     <td className="py-4 px-4 text-center space-y-1">

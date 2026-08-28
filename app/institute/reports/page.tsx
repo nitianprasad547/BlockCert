@@ -26,11 +26,10 @@ export default function InstituteReportsPage() {
   const [resolveError, setResolveError] = useState<string | null>(null);
 
   const fetchReports = async () => {
-    setLoading(true);
-    setLoadError(null);
     try {
       const data = await api.getReports();
       setReports(data);
+      setLoadError(null);
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : "Failed to load reports.");
       console.error("Error loading reports", err);
@@ -40,7 +39,23 @@ export default function InstituteReportsPage() {
   };
 
   useEffect(() => {
-    fetchReports();
+    let isMounted = true;
+    api.getReports()
+      .then((data) => {
+        if (isMounted) {
+          setReports(data);
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        if (isMounted) {
+          setLoadError(err instanceof Error ? err.message : "Failed to load reports.");
+          setLoading(false);
+        }
+      });
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const handleResolve = async (e: React.FormEvent) => {

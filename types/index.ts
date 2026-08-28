@@ -64,6 +64,7 @@ export interface AcademicRecordData {
   honors?: string;
   issue_date?: string;
   additional_notes?: string;
+  modification_reason?: string;
 }
 
 export interface CredentialVersion {

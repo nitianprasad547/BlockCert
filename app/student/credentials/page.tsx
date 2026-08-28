@@ -18,11 +18,13 @@ export default function StudentCredentialsListPage() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const loadCredentials = () => {
-    setLoading(true);
-    setLoadError(null);
+    const user = api.getCurrentUser();
     api
-      .getStudentCredentials(getStudentId())
-      .then((data) => setCredentials(data))
+      .getStudentCredentials(user?.student_id || undefined, user?.name || undefined)
+      .then((data) => {
+        setCredentials(data);
+        setLoadError(null);
+      })
       .catch((err) => {
         setLoadError(err instanceof Error ? err.message : "Failed to load credentials.");
       })
@@ -30,10 +32,30 @@ export default function StudentCredentialsListPage() {
   };
 
   useEffect(() => {
-    loadCredentials();
+    let isMounted = true;
+    const user = api.getCurrentUser();
+    api
+      .getStudentCredentials(user?.student_id || undefined, user?.name || undefined)
+      .then((data) => {
+        if (isMounted) {
+          setCredentials(data);
+          setLoadError(null);
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        if (isMounted) {
+          setLoadError(err instanceof Error ? err.message : "Failed to load credentials.");
+          setLoading(false);
+        }
+      });
+
     const handleUpdate = () => loadCredentials();
     window.addEventListener("blockcert:credentials-updated", handleUpdate);
-    return () => window.removeEventListener("blockcert:credentials-updated", handleUpdate);
+    return () => {
+      isMounted = false;
+      window.removeEventListener("blockcert:credentials-updated", handleUpdate);
+    };
   }, []);
 
   const handleCopy = async (id: string) => {

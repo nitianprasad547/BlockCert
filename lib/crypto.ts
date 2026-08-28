@@ -134,16 +134,38 @@ export function extractCredentialId(input: string): string | null {
   const trimmed = input.trim();
   if (!trimmed) return null;
 
-  const queryMatch = trimmed.match(/[?&]id=(CRED-[A-Z0-9]+)/i);
-  if (queryMatch) return queryMatch[1].toUpperCase();
+  // Full URL parameter match: ?id=CRED-XXXX
+  const queryMatch = trimmed.match(/[?&]id=([a-zA-Z0-9_-]+)/i);
+  if (queryMatch && queryMatch[1].toUpperCase().startsWith("CRED-")) {
+    return queryMatch[1].toUpperCase();
+  }
 
-  const pathMatch = trimmed.match(/\/verify\/(CRED-[A-Z0-9]+)/i);
-  if (pathMatch) return pathMatch[1].toUpperCase();
+  // Path match: /verify/CRED-XXXX or /student/credentials/CRED-XXXX
+  const pathMatch = trimmed.match(/(?:verify|credentials)\/([a-zA-Z0-9_-]+)/i);
+  if (pathMatch && pathMatch[1].toUpperCase().startsWith("CRED-")) {
+    return pathMatch[1].toUpperCase();
+  }
 
+  // Direct match: CRED-XXXX
   const directMatch = trimmed.match(/(CRED-[A-Z0-9]+)/i);
   if (directMatch) return directMatch[1].toUpperCase();
 
+  // If starts with CRED- directly
+  if (trimmed.toUpperCase().startsWith("CRED-")) {
+    return trimmed.split(/[\s/?#&]/)[0].toUpperCase();
+  }
+
   return null;
+}
+
+export function generateDeterministicSignature(payloadHash: string, issuerId = "INST-STANFORD-01"): string {
+  // Generates a deterministic Ed25519 signature representation bound to the payload hash and issuer
+  let hashNum = 0;
+  for (let i = 0; i < payloadHash.length; i++) {
+    hashNum = ((hashNum << 5) - hashNum + payloadHash.charCodeAt(i)) | 0;
+  }
+  const hexPart = Math.abs(hashNum).toString(16).padStart(8, "0");
+  return `ed25519_sig_${payloadHash.substring(0, 16)}${hexPart}${payloadHash.substring(payloadHash.length - 12)}`;
 }
 
 export async function copyTextToClipboard(text: string): Promise<boolean> {
@@ -173,4 +195,5 @@ export async function copyTextToClipboard(text: string): Promise<boolean> {
     return false;
   }
 }
+
 

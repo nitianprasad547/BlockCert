@@ -30,15 +30,13 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const initialRole = (searchParams.get("role") as UserRole) || "INSTITUTE";
 
-  const [authMode, setAuthMode] = useState<"SIGNIN" | "REGISTER">("SIGNIN");
   const [selectedRole, setSelectedRole] = useState<UserRole>(initialRole);
-  const [name, setName] = useState<string>("");
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("Password123!");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Email verification modal state
+  // Email verification modal state (for sandbox testing only)
   const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
   const [pendingEmail, setPendingEmail] = useState<string>("");
   const [pendingRole, setPendingRole] = useState<UserRole>("STUDENT");
@@ -74,13 +72,13 @@ function LoginForm() {
     },
   ];
 
-  const completeLoginAndRedirect = async (userEmail: string, role: UserRole) => {
+  const completeLoginAndRedirect = async (userEmail: string, role: UserRole, customName?: string, userPassword?: string) => {
     try {
-      await api.login(userEmail, role);
-      const target = personas.find(p => p.role === role)?.redirect || "/institute/dashboard";
+      await api.login(userEmail, role, customName || "", userPassword);
+      const target = personas.find(p => p.role === role)?.redirect || (role === "STUDENT" ? "/student/dashboard" : role === "EMPLOYER" ? "/verify" : "/institute/dashboard");
       router.push(target);
     } catch (err: any) {
-      setError("Failed to establish session after verification.");
+      setError(err?.message || "Failed to establish session.");
     }
   };
 
@@ -90,7 +88,7 @@ function LoginForm() {
     try {
       // Ensure email is verified in auth store
       firebaseAuthService.instantDemoVerify(persona.email);
-      await api.login(persona.email, persona.role);
+      await api.login(persona.email, persona.role, persona.title);
       router.push(persona.redirect);
     } catch (err: any) {
       setError("Quick login error. Please try again.");
@@ -101,74 +99,33 @@ function LoginForm() {
 
   const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim()) {
-      setError("Email is required.");
-      return;
-    }
+    if (!email.trim()) { setError("Email is required."); return; }
 
     setLoading(true);
     setError(null);
-
-    const userRole = selectedRole;
     const targetEmail = email.trim().toLowerCase();
 
     try {
-      if (authMode === "REGISTER") {
-        // Register with Firebase
-        const res = await firebaseAuthService.registerWithEmail(
-          targetEmail,
-          password,
-          name || targetEmail.split("@")[0],
-          userRole
-        );
-
-        if (!res.success) {
-          setError(res.error || "Registration failed.");
-          setLoading(false);
-          return;
-        }
-
-        if (!res.isEmailVerified) {
-          // Open verification modal
-          setPendingEmail(targetEmail);
-          setPendingRole(userRole);
-          setInitialOtp(res.otpCode);
-          setIsVerificationModalOpen(true);
-          setLoading(false);
-          return;
-        }
-
-        // If immediately verified
-        await completeLoginAndRedirect(targetEmail, userRole);
-      } else {
-        // Sign in with Firebase
-        const res = await firebaseAuthService.loginWithEmail(
-          targetEmail,
-          password,
-          userRole
-        );
-
+      if (isLiveFirebaseConfigured()) {
+        const res = await firebaseAuthService.loginWithEmail(targetEmail, password, selectedRole);
         if (!res.success) {
           setError(res.error || "Invalid credentials.");
           setLoading(false);
           return;
         }
-
         if (!res.isEmailVerified) {
-          // Trigger email verification requirement
           setPendingEmail(targetEmail);
-          setPendingRole(userRole);
+          setPendingRole(selectedRole);
           setInitialOtp(res.otpCode);
           setIsVerificationModalOpen(true);
           setLoading(false);
           return;
         }
-
-        // Email is verified! Grant access
-        await completeLoginAndRedirect(targetEmail, userRole);
       }
+      // Authenticate with backend and redirect
+      await completeLoginAndRedirect(targetEmail, selectedRole, undefined, password);
     } catch (err: any) {
-      setError(err.message || "Authentication error occurred.");
+      setError(err.message || "Authentication error.");
     } finally {
       setLoading(false);
     }
@@ -251,33 +208,19 @@ function LoginForm() {
         </div>
       </div>
 
-      {/* Main Form Box: Sign In / Create Account with Firebase Email Verification */}
+      {/* Main Sign In Form */}
       <div className="rounded-3xl glass-panel p-6 sm:p-8 border border-white/10 bg-slate-900/90 shadow-2xl text-left space-y-6">
-        
-        {/* Toggle Sign In / Register Tabs */}
-        <div className="grid grid-cols-2 p-1 rounded-2xl bg-slate-950 border border-slate-800 text-xs font-bold">
-          <button
-            type="button"
-            onClick={() => setAuthMode("SIGNIN")}
-            className={`py-2.5 rounded-xl transition-all cursor-pointer ${
-              authMode === "SIGNIN"
-                ? "bg-emerald-500 text-slate-950 shadow-md"
-                : "text-slate-400 hover:text-white"
-            }`}
+
+        {/* Header row */}
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-extrabold text-white">Sign In with Email</h2>
+          <Link
+            href="/signup"
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-400 hover:text-emerald-300 transition-colors border border-emerald-500/30 hover:border-emerald-400/50 px-3 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20"
           >
-            Sign In with Email
-          </button>
-          <button
-            type="button"
-            onClick={() => setAuthMode("REGISTER")}
-            className={`py-2.5 rounded-xl transition-all cursor-pointer ${
-              authMode === "REGISTER"
-                ? "bg-emerald-500 text-slate-950 shadow-md"
-                : "text-slate-400 hover:text-white"
-            }`}
-          >
+            <Sparkles className="h-3 w-3" />
             Create New Account
-          </button>
+          </Link>
         </div>
 
         {error && (
@@ -298,7 +241,7 @@ function LoginForm() {
                 const newRole = e.target.value as UserRole;
                 setSelectedRole(newRole);
                 const persona = personas.find(p => p.role === newRole);
-                if (persona && authMode === "SIGNIN") setEmail(persona.email);
+                if (persona) setEmail(persona.email);
               }}
               className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-emerald-500 cursor-pointer"
             >
@@ -308,24 +251,6 @@ function LoginForm() {
             </select>
           </div>
 
-          {authMode === "REGISTER" && (
-            <div>
-              <label className="block font-semibold text-slate-300 mb-1">Full Legal Name</label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
-                  <UserIcon className="h-4 w-4" />
-                </div>
-                <input
-                  type="text"
-                  required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Dr. Arthur Pendelton"
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
-                />
-              </div>
-            </div>
-          )}
 
           <div>
             <label className="block font-semibold text-slate-300 mb-1">Email Address</label>
@@ -366,14 +291,7 @@ function LoginForm() {
             disabled={loading}
             className="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 font-bold text-sm hover:from-emerald-400 hover:to-teal-400 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-emerald-500/20 disabled:opacity-50 mt-2"
           >
-            <span>
-              {loading 
-                ? "Connecting with Firebase..." 
-                : authMode === "REGISTER" 
-                ? "Create Account & Send Verification Email" 
-                : "Sign In (Verify Email Status)"
-              }
-            </span>
+            <span>{loading ? "Signing in..." : "Sign In"}</span>
             <ArrowRight className="h-4 w-4" />
           </button>
         </form>

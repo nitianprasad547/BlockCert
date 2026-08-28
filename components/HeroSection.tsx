@@ -141,12 +141,13 @@ export default function HeroSection({ onOpenDemoModal, onOpenWhitepaperModal }: 
 
               {onOpenDemoModal && (
                 <button
+                  id="schedule-demo-hero-btn"
                   type="button"
                   onClick={onOpenDemoModal}
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 px-5 py-3.5 text-sm font-semibold text-amber-300 hover:text-amber-200 cursor-pointer"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 px-5 py-3.5 text-sm font-semibold text-amber-300 hover:text-amber-200 cursor-pointer transition-all hover:border-amber-500/40"
                 >
-                  <Sparkles className="h-4 w-4" />
-                  <span>Schedule Demo</span>
+                  <Sparkles className="h-4 w-4 text-amber-400" />
+                  <span>Interactive Workflow Demo</span>
                 </button>
               )}
 

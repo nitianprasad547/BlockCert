@@ -23,14 +23,13 @@ export default function StudentLayout({
 }) {
   const pathname = usePathname();
   const [activeModal, setActiveModal] = useState<ModalType>(null);
-  const [studentLabel, setStudentLabel] = useState("Student Credential Locker");
-
-  useEffect(() => {
-    const user = api.getCurrentUser();
-    if (user?.name) {
-      setStudentLabel(`${user.name} · Student Portal`);
+  const [studentLabel] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      const user = api.getCurrentUser();
+      if (user?.name) return `${user.name} · Student Portal`;
     }
-  }, []);
+    return "Student Credential Locker";
+  });
 
   const navItems = [
     {

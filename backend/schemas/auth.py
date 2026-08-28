@@ -1,10 +1,17 @@
 from pydantic import BaseModel
 from typing import Optional
 
+class RegisterRequest(BaseModel):
+    name: str
+    email: str
+    password: str
+    role: Optional[str] = "INSTITUTE"
+
 class LoginRequest(BaseModel):
     email: str
     password: Optional[str] = "password123"
     role: Optional[str] = "INSTITUTE"
+    name: Optional[str] = None
     is_email_verified: Optional[bool] = True
     firebase_uid: Optional[str] = None
 
@@ -25,3 +32,4 @@ class TokenResponse(BaseModel):
 class VerifyEmailRequest(BaseModel):
     email: str
     is_verified: bool = True
+

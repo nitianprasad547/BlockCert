@@ -21,7 +21,7 @@ import { formatHash, copyTextToClipboard } from "@/lib/crypto";
 
 interface CredentialCardProps {
   credential: CredentialVersion;
-  status?: CredentialStatus;
+  status?: CredentialStatus | "TAMPERED" | "NOT_FOUND";
   permanentId: string;
   showActions?: boolean;
   onReportDiscrepancy?: () => void;
@@ -72,6 +72,7 @@ export default function CredentialCard({
     }
   };
 
+  const isTampered = status === "TAMPERED";
   const isRevoked = status === "REVOKED" || credential.status === "REVOKED";
   const isSuperseded = status === "SUPERSEDED" || credential.status === "SUPERSEDED";
 
@@ -79,7 +80,9 @@ export default function CredentialCard({
     <div className="space-y-4">
       {/* Certificate Frame Container */}
       <div className={`relative rounded-2xl sm:rounded-3xl p-6 sm:p-10 border transition-all duration-300 shadow-2xl text-left ${
-        isRevoked
+        isTampered
+          ? "bg-slate-950 border-rose-600 shadow-rose-950/40 ring-1 ring-rose-500/50"
+          : isRevoked
           ? "bg-slate-950 border-rose-500/50 shadow-rose-950/20"
           : isSuperseded
           ? "bg-slate-950 border-amber-500/40 shadow-amber-950/20 opacity-90"
@@ -121,7 +124,12 @@ export default function CredentialCard({
                 v{credential.version_number}.0
               </span>
 
-              {isRevoked ? (
+              {isTampered ? (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-500/20 px-3 py-1 text-xs font-extrabold text-rose-400 border border-rose-500 animate-pulse">
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  <span>TAMPERED / FRAUDULENT</span>
+                </span>
+              ) : isRevoked ? (
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-500/20 px-3 py-1 text-xs font-extrabold text-rose-400 border border-rose-500/40 animate-pulse-red">
                   <AlertTriangle className="h-3.5 w-3.5" />
                   <span>REVOKED</span>
