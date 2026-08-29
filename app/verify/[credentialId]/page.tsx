@@ -1,8 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
-import Link from "next/link";
+import { useParams } from "next/navigation";import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import DemoModal, { ModalType } from "@/components/DemoModal";
@@ -11,11 +10,9 @@ import BlockchainExplorerModal from "@/components/BlockchainExplorerModal";
 import DiscrepancyModal from "@/components/DiscrepancyModal";
 import { VerificationResult as VerificationResultType, AcademicRecordData } from "@/types";
 import { api } from "@/lib/api";
-import { ShieldCheck, ArrowLeft, RefreshCw } from "lucide-react";
-
+import { ArrowLeft, RefreshCw } from "lucide-react";
 export default function DirectVerifyPage() {
   const params = useParams();
-  const router = useRouter();
   const credentialId = (params?.credentialId as string) || "";
 
   const [loading, setLoading] = useState(true);
@@ -28,12 +25,16 @@ export default function DirectVerifyPage() {
   const [isDiscrepancyOpen, setIsDiscrepancyOpen] = useState(false);
   const [activeModal, setActiveModal] = useState<ModalType>(null);
 
-  const performVerification = async (tamperPayload?: Partial<AcademicRecordData> | null) => {
-    if (!credentialId) return;
+  const performVerification = async (
+    targetId?: string,
+    tamperPayload?: Partial<AcademicRecordData> | null
+  ) => {
+    const idToVerify = targetId || credentialId;
+    if (!idToVerify) return;
     setLoading(true);
     setVerifyError(null);
     try {
-      const res = await api.verifyCredential(credentialId, tamperPayload || undefined);
+      const res = await api.verifyCredential(idToVerify, tamperPayload || undefined);
       setResult(res);
       setIsSimulatingTamper(!!tamperPayload);
     } catch (err) {
@@ -48,7 +49,7 @@ export default function DirectVerifyPage() {
 
   useEffect(() => {
     if (credentialId) {
-      performVerification();
+      performVerification(credentialId);
     }
   }, [credentialId]);
 
@@ -70,7 +71,7 @@ export default function DirectVerifyPage() {
 
           <button
             type="button"
-            onClick={() => performVerification(null)}
+            onClick={() => performVerification(credentialId)}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs font-semibold text-emerald-400 transition-colors cursor-pointer"
           >
             <RefreshCw className="h-3.5 w-3.5" />
@@ -92,7 +93,7 @@ export default function DirectVerifyPage() {
           <div className="max-w-5xl mx-auto">
             <VerificationResult
               result={result}
-              onSimulateTamper={(tamperPayload) => performVerification(tamperPayload)}
+              onSimulateTamper={(tamperPayload) => performVerification(credentialId, tamperPayload)}
               onReportDiscrepancy={() => setIsDiscrepancyOpen(true)}
               onOpenChainExplorer={() => setIsChainExplorerOpen(true)}
               isSimulatingTamper={isSimulatingTamper}
@@ -103,7 +104,7 @@ export default function DirectVerifyPage() {
             <p className="text-rose-300">{verifyError}</p>
             <button
               type="button"
-              onClick={() => performVerification(null)}
+              onClick={() => performVerification(credentialId)}
               className="px-4 py-2 rounded-xl bg-emerald-500 text-slate-950 text-xs font-bold cursor-pointer"
             >
               Retry Verification

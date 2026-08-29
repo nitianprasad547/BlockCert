@@ -13,7 +13,9 @@ import {
   Award, 
   AlertTriangle, 
   ShieldCheck, 
-  QrCode 
+  QrCode,
+  LogIn,
+  UserPlus 
 } from "lucide-react";
 
 export default function StudentLayout({
@@ -72,27 +74,41 @@ export default function StudentLayout({
             </div>
           </div>
 
-          {/* Nav Links Tabs */}
-          <nav className="flex flex-wrap items-center gap-1.5 text-xs font-semibold">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = pathname === item.href || (item.href !== "/student/dashboard" && pathname?.startsWith(item.href));
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all ${
-                    isActive
-                      ? "bg-cyan-500 text-slate-950 font-bold shadow-md shadow-cyan-500/20"
-                      : "text-slate-400 hover:text-white hover:bg-slate-800/80"
-                  }`}
-                >
-                  <Icon className="h-3.5 w-3.5" />
-                  <span>{item.label}</span>
-                </Link>
-              );
-            })}
-          </nav>
+          {/* Right side: Nav Links Tabs and 2-Menu Dual Auth Switcher */}
+          <div className="flex flex-wrap items-center gap-3">
+            <nav className="flex flex-wrap items-center gap-1.5 text-xs font-semibold">
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = pathname === item.href || (item.href !== "/student/dashboard" && pathname?.startsWith(item.href));
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all ${
+                      isActive
+                        ? "bg-cyan-500 text-slate-950 font-bold shadow-md shadow-cyan-500/20"
+                        : "text-slate-400 hover:text-white hover:bg-slate-800/80"
+                    }`}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    <span>{item.label}</span>
+                  </Link>
+                );
+              })}
+            </nav>
+
+            {/* Access with Credential ID */}
+            <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-950 border border-slate-800 text-xs">
+              <Link
+                href="/student/login"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-500/20 text-cyan-300 hover:bg-cyan-500/30 border border-cyan-500/40 transition-colors font-bold"
+                title="Access with Credential ID provided by your institute"
+              >
+                <LogIn className="h-3.5 w-3.5 text-cyan-400" />
+                <span>Access with Credential ID</span>
+              </Link>
+            </div>
+          </div>
 
         </div>
 

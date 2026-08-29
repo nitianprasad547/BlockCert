@@ -38,6 +38,14 @@ export default function NewCredentialPage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [liveHash, setLiveHash] = useState("");
   const [successCredId, setSuccessCredId] = useState<string | null>(null);
+  const [currentUser, setCurrentUser] = useState(() => (typeof window !== "undefined" ? api.getCurrentUser() : null));
+
+  useEffect(() => {
+    setCurrentUser(api.getCurrentUser());
+  }, []);
+
+  const effectiveInstId = currentUser?.institution_id || "INST-STANFORD-01";
+  const effectiveInstName = (currentUser?.role === "INSTITUTE" && currentUser?.name) ? currentUser.name : "Stanford University & Academic Alliance";
 
   // Live recalculation of SHA-256 hash as user types
   useEffect(() => {
@@ -49,8 +57,8 @@ export default function NewCredentialPage() {
       cgpa: Number(formData.cgpa),
       graduation_year: Number(formData.graduation_year),
       enrollment_year: Number(formData.enrollment_year),
-      institution_id: "INST-STANFORD-01",
-      institution_name: "Stanford University & Academic Alliance",
+      institution_id: effectiveInstId,
+      institution_name: effectiveInstName,
       classification: formData.classification,
       major_specialization: formData.major_specialization,
       issue_date: new Date().toISOString().split("T")[0],
@@ -58,7 +66,7 @@ export default function NewCredentialPage() {
 
     const canonical = canonicalizeJson(payload);
     sha256Client(canonical).then(setLiveHash);
-  }, [formData]);
+  }, [formData, effectiveInstId, effectiveInstName]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -138,14 +146,40 @@ export default function NewCredentialPage() {
               Credential Successfully Issued &amp; Anchored!
             </h2>
             <p className="text-xs sm:text-sm text-slate-300 max-w-md mx-auto">
-              Permanent Credential ID generated and signed with Stanford University&apos;s Ed25519 private key.
+              Permanent Credential ID generated and signed with {effectiveInstName}&apos;s Ed25519 private key.
             </p>
             <div className="inline-block p-3 rounded-xl bg-slate-950 border border-emerald-500/30 font-mono text-base font-extrabold text-emerald-400">
               {successCredId}
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
+          {/* Student Account Creation / Access Pass */}
+          <div className="max-w-md mx-auto rounded-2xl border border-cyan-500/30 bg-cyan-950/20 p-4 text-left space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-extrabold text-cyan-300 uppercase tracking-wider flex items-center gap-1.5">
+                <Sparkles className="h-3.5 w-3.5 text-cyan-400" />
+                <span>Student Onboarding Pass</span>
+              </span>
+              <span className="text-[10px] font-mono text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/30">
+                Single-Student Locker Link
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-300 leading-relaxed">
+              Provide this Credential ID to the student. They will use it to create their student account or sign in directly to their private locker:
+            </p>
+            <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-slate-950 border border-slate-800 text-xs font-mono text-slate-300">
+              <span className="truncate">/signup?role=STUDENT&amp;credential_id={successCredId}</span>
+              <Link
+                href={`/signup?role=STUDENT&credential_id=${successCredId}`}
+                target="_blank"
+                className="px-2.5 py-1 rounded-lg bg-cyan-500/20 text-cyan-300 hover:bg-cyan-500/30 border border-cyan-500/40 text-[10px] font-bold uppercase shrink-0"
+              >
+                Open Pass →
+              </Link>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-center gap-4 pt-2">
             <Link
               href={`/institute/credentials/${successCredId}`}
               className="px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 font-bold text-xs hover:from-emerald-400 hover:to-teal-400 transition-all shadow-lg"
@@ -360,8 +394,8 @@ export default function NewCredentialPage() {
 
                 <div>
                   <span className="text-slate-400 block text-[10px] uppercase">Issuing Key Authority:</span>
-                  <div className="p-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-300 text-[11px] mt-1">
-                    Stanford Alliance (Ed25519 Private Key #01)
+                  <div className="p-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-300 text-[11px] mt-1 font-mono">
+                    {effectiveInstName} (Ed25519 Private Key)
                   </div>
                 </div>
 

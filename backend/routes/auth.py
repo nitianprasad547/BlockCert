@@ -61,15 +61,53 @@ def register(req: RegisterRequest, db: Session = Depends(get_db)):
     """Register a new user account and return a JWT token immediately."""
     normalized_email = req.email.strip().lower()
 
-    # Check duplicate email
+    role = (req.role or "INSTITUTE").upper()
+
+    # Check existing account for linking
     existing = db.query(User).filter(User.email == normalized_email).first()
     if existing:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="An account with this email already exists. Please sign in instead.",
-        )
+        if existing.password_hash and existing.password_hash != hash_password(req.password):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="An account with this email already exists, but the password provided does not match. Please enter the correct account password to link your profile."
+            )
 
-    role = (req.role or "INSTITUTE").upper()
+        # Link account to requested role
+        if role == "INSTITUTE" and not existing.institution_id:
+            from backend.models.institution import Institution
+            from backend.services.crypto_service import CryptoService
+
+            inst_name = req.name.strip()
+            base_code = req.name.strip().replace(" ", "-").upper()[:16]
+            code_suffix = secrets.token_hex(2).upper()
+            inst_code_unique = f"{base_code}-{code_suffix}"
+
+            public_key_b64, private_key_pem = CryptoService.generate_ed25519_keypair()
+            institution_id = f"INST-{secrets_token(3)}"
+
+            inst = Institution(
+                institution_id=institution_id,
+                name=inst_name,
+                code=inst_code_unique,
+                official_email=normalized_email,
+                domain=normalized_email.split("@")[-1] if "@" in normalized_email else None,
+                address=None,
+                contact_number=None,
+                public_key=public_key_b64,
+                private_key_pem=private_key_pem,
+                verified=True,
+            )
+            db.add(inst)
+            db.flush()
+            existing.institution_id = institution_id
+
+        existing.role = role
+        if req.name and req.name.strip():
+            existing.name = req.name.strip()
+        db.commit()
+        db.refresh(existing)
+        return _build_token_response(existing, is_email_verified=True)
+
     role_prefix = role[:3]
     user_id = f"USR-{role_prefix}-{secrets_token(4)}"
 

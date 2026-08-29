@@ -26,9 +26,27 @@ export interface User {
   role: UserRole;
   institution_id?: string | null;
   student_id?: string | null;
+  credential_id?: string | null;
+  claimed_credential_ids?: string[];
+  linked_roles?: UserRole[];
   is_email_verified?: boolean;
   firebase_uid?: string | null;
   created_at?: string;
+}
+
+export interface UserAccount {
+  account_id: string;
+  email: string;
+  password?: string;
+  name: string;
+  roles: UserRole[];
+  institution_id?: string | null;
+  institution_name?: string | null;
+  employer_org?: string | null;
+  student_id?: string | null;
+  credential_id?: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface EmailVerificationState {

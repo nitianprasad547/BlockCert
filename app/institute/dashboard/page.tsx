@@ -28,15 +28,21 @@ export default function InstituteDashboard() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  const [currentUser, setCurrentUser] = useState(() => (typeof window !== "undefined" ? api.getCurrentUser() : null));
+
   const loadData = async () => {
     try {
+      const user = api.getCurrentUser();
+      setCurrentUser(user);
       const [creds, reps, blks] = await Promise.all([
-        api.getCredentials(),
+        api.getInstitutionCredentials(user?.institution_id || undefined),
         api.getReports(),
         api.getBlockchainBlocks(),
       ]);
+      const instCredIds = new Set(creds.map((c) => c.credential_id.toUpperCase()));
+      const filteredReports = reps.filter((r) => instCredIds.has(r.credential_id.toUpperCase()));
       setCredentials(creds);
-      setReports(reps);
+      setReports(filteredReports);
       setBlocks(blks);
       setLoadError(null);
     } catch (err) {
@@ -49,15 +55,20 @@ export default function InstituteDashboard() {
 
   useEffect(() => {
     let isMounted = true;
+    const user = api.getCurrentUser();
+    if (isMounted) setCurrentUser(user);
+
     Promise.all([
-      api.getCredentials(),
+      api.getInstitutionCredentials(user?.institution_id || undefined),
       api.getReports(),
       api.getBlockchainBlocks(),
     ])
       .then(([creds, reps, blks]) => {
         if (isMounted) {
+          const instCredIds = new Set(creds.map((c) => c.credential_id.toUpperCase()));
+          const filteredReports = reps.filter((r) => instCredIds.has(r.credential_id.toUpperCase()));
           setCredentials(creds);
-          setReports(reps);
+          setReports(filteredReports);
           setBlocks(blks);
           setLoading(false);
         }
@@ -88,6 +99,10 @@ export default function InstituteDashboard() {
       {/* Top Banner & Quick Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold mb-2">
+            <Building2 className="h-3.5 w-3.5" />
+            <span>{currentUser?.name || "Institution Registrar"} {currentUser?.institution_id ? `(${currentUser.institution_id})` : ""}</span>
+          </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-white">
             Registrar Command Dashboard
           </h1>
@@ -192,7 +207,25 @@ export default function InstituteDashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5 text-xs font-medium">
-                  {credentials.slice(0, 5).map((cred) => (
+                  {credentials.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="py-12 px-4 text-center space-y-3">
+                        <Award className="h-10 w-10 text-slate-600 mx-auto" />
+                        <div className="space-y-1">
+                          <p className="text-sm font-bold text-slate-300">0 Credentials Generated</p>
+                          <p className="text-xs text-slate-500">Your institution hasn&apos;t issued any academic degrees yet.</p>
+                        </div>
+                        <Link
+                          href="/institute/credentials/new"
+                          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-500 text-slate-950 font-bold text-xs hover:bg-emerald-400 transition-colors"
+                        >
+                          <PlusCircle className="h-4 w-4" />
+                          <span>Issue First Credential</span>
+                        </Link>
+                      </td>
+                    </tr>
+                  ) : (
+                    credentials.slice(0, 5).map((cred) => (
                     <tr key={cred.credential_id} className="hover:bg-white/[0.02] transition-colors">
                       <td className="py-4 px-4 font-bold text-white flex items-center gap-3">
                         <div className="h-8 w-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs border border-emerald-500/30">
@@ -242,7 +275,7 @@ export default function InstituteDashboard() {
                         </Link>
                       </td>
                     </tr>
-                  ))}
+                  )))}
                 </tbody>
               </table>
             </div>

@@ -9,6 +9,8 @@ import {
   RevocationRequest,
   Institution,
   User,
+  UserAccount,
+  UserRole,
   Block,
   AcademicRecordData,
 } from "@/types";
@@ -313,20 +315,125 @@ function setLocalStore<T>(key: string, val: T): void {
   }
 }
 
+const initialAccounts: UserAccount[] = [
+  {
+    account_id: "ACC-STANFORD-01",
+    email: "registrar@stanford.edu",
+    password: "Password123!",
+    name: "Stanford University & Academic Alliance",
+    roles: ["INSTITUTE"],
+    institution_id: "INST-STANFORD-01",
+    institution_name: "Stanford University & Academic Alliance",
+    created_at: "2026-01-01T00:00:00Z",
+    updated_at: "2026-01-01T00:00:00Z",
+  },
+  {
+    account_id: "ACC-EMPLOYER-01",
+    email: "recruiter@techcorp.com",
+    password: "Password123!",
+    name: "TechCorp Recruiting",
+    roles: ["EMPLOYER"],
+    employer_org: "TechCorp Global Inc",
+    created_at: "2026-01-01T00:00:00Z",
+    updated_at: "2026-01-01T00:00:00Z",
+  },
+];
+
 export const api = {
   // Authentication
 
   /**
-   * Register a new account. Persists to backend DB when available.
-   * Throws an error with code "EMAIL_EXISTS" if the email is already taken.
+   * Register a new account or link an existing account with the same email.
+   * If the email exists and the password matches, the new role is linked to the existing account.
    */
   async register(
     name: string,
     email: string,
     password: string,
-    role: string
+    role: string,
+    credentialId?: string
   ): Promise<{ user: User; token: string }> {
     const cleanEmail = email.trim().toLowerCase();
+    const roleUpper = (role || "INSTITUTE").toUpperCase() as UserRole;
+    const accounts = getLocalStore<UserAccount[]>("blockcert_accounts", initialAccounts);
+
+    // 1. Account database linking: Check if an account with this email already exists
+    let existingAccount = accounts.find((a) => a.email.toLowerCase() === cleanEmail);
+
+    if (existingAccount) {
+      // Check password matching if password provided
+      if (existingAccount.password && password && existingAccount.password !== password) {
+        throw new Error(
+          "An account with this email already exists, but the password provided does not match. Please enter your existing account password to link this profile."
+        );
+      }
+
+      // Link to same account!
+      if (!existingAccount.roles.includes(roleUpper)) {
+        existingAccount.roles.push(roleUpper);
+      }
+
+      // If linking institute and account doesn't have an institution_id yet, provision a unique one
+      if (roleUpper === "INSTITUTE" && !existingAccount.institution_id) {
+        const instId = `INST-${name.replace(/[^A-Za-z0-9]/g, "").toUpperCase().substring(0, 8) || "ORG"}-${Math.random().toString(16).substring(2, 6).toUpperCase()}`;
+        existingAccount.institution_id = instId;
+        existingAccount.institution_name = name.trim();
+
+        // Create independent Institution record in institutions table
+        const newInst: Institution = {
+          institution_id: instId,
+          name: name.trim(),
+          code: `${name.replace(/[^A-Za-z0-9]/g, "-").toUpperCase().substring(0, 16) || "ORG"}-${Math.random().toString(16).substring(2, 6).toUpperCase()}`,
+          official_email: cleanEmail,
+          public_key: `Ed25519-PubKey-${Math.random().toString(16).substring(2, 10)}`,
+          verified: true,
+          created_at: new Date().toISOString(),
+        };
+        const insts = getLocalStore<Institution[]>("institutions", [initialInstitution]);
+        setLocalStore("institutions", [...insts.filter(i => i.institution_id !== instId), newInst]);
+      }
+
+      if (roleUpper === "EMPLOYER" && !existingAccount.employer_org) {
+        existingAccount.employer_org = name.trim();
+      }
+
+      existingAccount.updated_at = new Date().toISOString();
+      setLocalStore(
+        "blockcert_accounts",
+        accounts.map((a) => (a.account_id === existingAccount!.account_id ? existingAccount! : a))
+      );
+    } else {
+      // Create fresh new account in the account database
+      let newInstId: string | null = null;
+      if (roleUpper === "INSTITUTE") {
+        newInstId = `INST-${name.replace(/[^A-Za-z0-9]/g, "").toUpperCase().substring(0, 8) || "ORG"}-${Math.random().toString(16).substring(2, 6).toUpperCase()}`;
+        const newInst: Institution = {
+          institution_id: newInstId,
+          name: name.trim(),
+          code: `${name.replace(/[^A-Za-z0-9]/g, "-").toUpperCase().substring(0, 16) || "ORG"}-${Math.random().toString(16).substring(2, 6).toUpperCase()}`,
+          official_email: cleanEmail,
+          public_key: `Ed25519-PubKey-${Math.random().toString(16).substring(2, 10)}`,
+          verified: true,
+          created_at: new Date().toISOString(),
+        };
+        const insts = getLocalStore<Institution[]>("institutions", [initialInstitution]);
+        setLocalStore("institutions", [...insts.filter(i => i.institution_id !== newInstId), newInst]);
+      }
+
+      existingAccount = {
+        account_id: `ACC-${Math.random().toString(16).substring(2, 8).toUpperCase()}`,
+        email: cleanEmail,
+        password: password,
+        name: name.trim(),
+        roles: [roleUpper],
+        institution_id: newInstId,
+        institution_name: roleUpper === "INSTITUTE" ? name.trim() : null,
+        employer_org: roleUpper === "EMPLOYER" ? name.trim() : null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      setLocalStore("blockcert_accounts", [...accounts, existingAccount]);
+    }
 
     const backendUp = await isBackendAvailable();
     if (backendUp) {
@@ -335,36 +442,38 @@ export const api = {
           name: name.trim(),
           email: cleanEmail,
           password,
-          role: role.toUpperCase(),
+          role: roleUpper,
         });
-        const backendUser: User = res.data.user;
-        if (typeof window !== "undefined") {
-          localStorage.setItem("blockcert_token", res.data.token || "jwt-" + Date.now());
-          localStorage.setItem("blockcert_current_user", JSON.stringify(backendUser));
+        if (res.data?.user) {
+          const backendUser: User = {
+            ...res.data.user,
+            linked_roles: existingAccount.roles,
+            institution_id: res.data.user.institution_id || existingAccount.institution_id,
+          };
+          if (typeof window !== "undefined") {
+            localStorage.setItem("blockcert_token", res.data.token || "jwt-" + Date.now());
+            localStorage.setItem("blockcert_current_user", JSON.stringify(backendUser));
+          }
+          return { user: backendUser, token: res.data.token };
         }
-        return { user: backendUser, token: res.data.token };
-      } catch (err: any) {
-        const status = err?.response?.status;
-        const detail = err?.response?.data?.detail || err?.message || "Registration failed.";
-        if (status === 409) {
-          const e: any = new Error(detail);
-          e.code = "EMAIL_EXISTS";
-          throw e;
-        }
-        throw new Error(detail);
+      } catch {
+        // Fall back to local account
       }
     }
 
-    // Demo / offline fallback — create a local-only account
-    const roleUpper = role.toUpperCase() as any;
     const user: User = {
-      user_id: `USR-DEMO-${Date.now()}`,
-      name: name.trim(),
-      email: cleanEmail,
+      user_id: existingAccount.account_id,
+      name: (roleUpper === "INSTITUTE" && existingAccount.institution_name) ? existingAccount.institution_name : existingAccount.name,
+      email: existingAccount.email,
       role: roleUpper,
-      institution_id: roleUpper === "INSTITUTE" ? "INST-STANFORD-01" : null,
-      student_id: roleUpper === "STUDENT" ? `STU-${name.replace(/\s+/g, "").toUpperCase().substring(0, 6)}-01` : null,
+      linked_roles: existingAccount.roles,
+      institution_id: existingAccount.institution_id || null,
+      student_id: null,
+      credential_id: null,
+      is_email_verified: true,
+      created_at: existingAccount.created_at,
     };
+
     if (typeof window !== "undefined") {
       localStorage.setItem("blockcert_token", "jwt-" + Date.now());
       localStorage.setItem("blockcert_current_user", JSON.stringify(user));
@@ -372,23 +481,66 @@ export const api = {
     return { user, token: "mock-jwt-token" };
   },
 
-  async login(email: string, role: string, displayName?: string, password?: string): Promise<{ user: User; token: string }> {
-    const cleanEmail = email ? email.trim().toLowerCase() : "";
-    const name = displayName?.trim() || (
+  async login(
+    emailOrCredId: string, 
+    role: string, 
+    displayName?: string, 
+    password?: string,
+    credentialId?: string
+  ): Promise<{ user: User; token: string }> {
+    const rawInput = emailOrCredId ? emailOrCredId.trim() : "";
+    const isCredIdLogin = rawInput.toUpperCase().startsWith("CRED-") || !!credentialId;
+    const cleanCredId = (credentialId || (rawInput.toUpperCase().startsWith("CRED-") ? rawInput : "")).trim().toUpperCase();
+
+    let matchedCred: Credential | undefined;
+    if (cleanCredId) {
+      const allCreds = getLocalStore<Credential[]>("credentials", initialCredentials);
+      matchedCred = allCreds.find((c) => c.credential_id.toUpperCase() === cleanCredId);
+    }
+
+    const cleanEmail = isCredIdLogin 
+      ? (matchedCred ? `${matchedCred.student_id.toLowerCase()}@student.edu` : `${cleanCredId.toLowerCase()}@student.edu`)
+      : rawInput.toLowerCase();
+
+    // Check account database for this email
+    const accounts = getLocalStore<UserAccount[]>("blockcert_accounts", initialAccounts);
+    const matchedAccount = accounts.find((a) => a.email.toLowerCase() === cleanEmail);
+
+    let effectiveInstId: string | null = null;
+    if (role === "INSTITUTE") {
+      if (cleanEmail === "registrar@stanford.edu") {
+        effectiveInstId = "INST-STANFORD-01";
+      } else if (matchedAccount?.institution_id) {
+        effectiveInstId = matchedAccount.institution_id;
+      } else {
+        // Generate and bind a unique institution ID so no mixup with Stanford occurs
+        const genId = `INST-${(displayName || "REG").replace(/[^A-Za-z0-9]/g, "").toUpperCase().substring(0, 8)}-${Math.random().toString(16).substring(2, 6).toUpperCase()}`;
+        effectiveInstId = genId;
+      }
+    }
+
+    const name = matchedCred?.latest_version?.student_name || displayName?.trim() || (
       role === "INSTITUTE"
-        ? (cleanEmail.includes("stanford") ? "Stanford Registrar Office" : "Institution Registrar Admin")
+        ? (matchedAccount?.institution_name || (cleanEmail.includes("stanford") ? "Stanford University & Academic Alliance" : "Institution Registrar Admin"))
         : role === "STUDENT"
         ? (cleanEmail.includes("rahul") ? "Rahul Sharma" : cleanEmail.includes("evelyn") ? "Dr. Evelyn Vance" : cleanEmail.includes("ananya") ? "Ananya Patel" : (cleanEmail.split("@")[0] || "Student Graduate"))
-        : "Enterprise Recruiter"
+        : (matchedAccount?.employer_org || "Enterprise Recruiter")
     );
 
     const user: User = {
-      user_id: role === "INSTITUTE" ? "USR-ADMIN-01" : role === "STUDENT" ? (cleanEmail.includes("evelyn") ? "USR-EVELYN-02" : "USR-RAHUL-01") : "USR-EMP-01",
+      user_id: matchedAccount ? matchedAccount.account_id : (role === "INSTITUTE" ? "USR-ADMIN-01" : role === "STUDENT" ? (cleanCredId ? `USR-${cleanCredId}` : "USR-RAHUL-01") : "USR-EMP-01"),
       name: name,
       email: cleanEmail || (role === "INSTITUTE" ? "registrar@stanford.edu" : role === "STUDENT" ? "rahul@student.edu" : "recruiter@techcorp.com"),
       role: role as any,
-      institution_id: role === "INSTITUTE" ? "INST-STANFORD-01" : null,
-      student_id: role === "STUDENT" ? (cleanEmail.includes("evelyn") ? "STU-EVELYN-02" : "STU-RAHUL-01") : null,
+      linked_roles: matchedAccount ? matchedAccount.roles : [role as any],
+      institution_id: effectiveInstId,
+      student_id: role === "STUDENT" 
+        ? (matchedCred?.student_id || (cleanEmail.includes("evelyn") ? "STU-EVELYN-02" : "STU-RAHUL-01")) 
+        : null,
+      credential_id: cleanCredId || (role === "STUDENT" && cleanEmail.includes("rahul") ? "CRED-7F83A91" : null),
+      claimed_credential_ids: cleanCredId 
+        ? [cleanCredId] 
+        : (role === "STUDENT" && cleanEmail.includes("rahul") ? ["CRED-7F83A91"] : []),
     };
 
     if (typeof window !== "undefined") {
@@ -399,11 +551,17 @@ export const api = {
     const backendUp = await isBackendAvailable();
     if (backendUp) {
       try {
-        const payload: Record<string, any> = { email: cleanEmail, role };
+        const payload: Record<string, any> = { email: cleanEmail, role, credential_id: cleanCredId || undefined };
         if (password) payload.password = password;
         const res = await apiClient.post("/auth/login", payload);
         if (res.data?.user) {
-          const mergedUser = { ...user, ...res.data.user, name: name || res.data.user.name };
+          const mergedUser = { 
+            ...user, 
+            ...res.data.user, 
+            name: name || res.data.user.name,
+            credential_id: cleanCredId || res.data.user.credential_id || user.credential_id,
+            claimed_credential_ids: cleanCredId ? [cleanCredId] : user.claimed_credential_ids,
+          };
           if (typeof window !== "undefined") {
             localStorage.setItem("blockcert_current_user", JSON.stringify(mergedUser));
           }
@@ -420,6 +578,83 @@ export const api = {
     }
 
     return { user, token: "mock-jwt-token" };
+  },
+
+  /**
+   * Link an issued credential ID to the current student's session.
+   */
+  claimCredential(credentialId: string): User | null {
+    const user = api.getCurrentUser();
+    if (!user) return null;
+    const cleanId = credentialId.trim().toUpperCase();
+    const existingClaimed = user.claimed_credential_ids ? [...user.claimed_credential_ids] : (user.credential_id ? [user.credential_id] : []);
+    if (!existingClaimed.includes(cleanId)) {
+      existingClaimed.push(cleanId);
+    }
+    const updatedUser: User = {
+      ...user,
+      credential_id: cleanId,
+      claimed_credential_ids: existingClaimed,
+    };
+    if (typeof window !== "undefined") {
+      localStorage.setItem("blockcert_current_user", JSON.stringify(updatedUser));
+    }
+    notifyCredentialsChanged();
+    return updatedUser;
+  },
+
+  /**
+   * Fetch authoritative scorecard and degree certificate for a given Credential ID.
+   */
+  async getStudentScorecard(credentialId: string): Promise<Credential | null> {
+    const cleanId = credentialId.trim().toUpperCase();
+    const backendUp = await isBackendAvailable();
+    if (backendUp) {
+      try {
+        const res = await apiClient.get(`/student/scorecard/${encodeURIComponent(cleanId)}`);
+        if (res.data && res.data.credential_id) {
+          return res.data;
+        }
+      } catch {
+        // Fall back to local search
+      }
+    }
+
+    const allCreds = getLocalStore<Credential[]>("credentials", initialCredentials);
+    const match = allCreds.find((c) => c.credential_id.toUpperCase() === cleanId);
+    return match || null;
+  },
+
+  /**
+   * Authenticate student directly using their issued Credential ID.
+   * Verifies against the database/ledger and binds session exclusively to that credential.
+   */
+  async loginWithCredentialId(credentialId: string): Promise<{ user: User; credential: Credential }> {
+    const cleanId = credentialId.trim().toUpperCase();
+    const cred = await api.getStudentScorecard(cleanId);
+    if (!cred) {
+      throw new Error(`No academic record or scorecard found matching Credential ID: "${cleanId}". Please verify the ID provided by your university.`);
+    }
+
+    const studentName = cred.latest_version?.student_name || "Student Graduate";
+    const user: User = {
+      user_id: `USR-${cleanId}`,
+      name: studentName,
+      email: `${cred.student_id ? cred.student_id.toLowerCase() : cleanId.toLowerCase()}@student.edu`,
+      role: "STUDENT",
+      institution_id: cred.institution_id,
+      student_id: cred.student_id,
+      credential_id: cred.credential_id,
+      claimed_credential_ids: [cred.credential_id],
+      is_email_verified: true,
+    };
+
+    if (typeof window !== "undefined") {
+      localStorage.setItem("blockcert_token", "jwt-" + Date.now());
+      localStorage.setItem("blockcert_current_user", JSON.stringify(user));
+    }
+    notifyCredentialsChanged();
+    return { user, credential: cred };
   },
 
   getCurrentUser(): User | null {
@@ -445,16 +680,36 @@ export const api = {
   },
 
   // Institutions
-  async getInstitution(id = "INST-STANFORD-01"): Promise<Institution> {
+  async getInstitution(id?: string): Promise<Institution> {
+    const currentUser = api.getCurrentUser();
+    const targetId = id || (currentUser?.role === "INSTITUTE" && currentUser?.institution_id ? currentUser.institution_id : null) || "INST-STANFORD-01";
+
     const backendUp = await isBackendAvailable();
     if (backendUp) {
       try {
-        const res = await apiClient.get(`/institutions/${id}`);
+        const res = await apiClient.get(`/institutions/${targetId}`);
         if (res.data) return res.data;
       } catch {
         // Fall back
       }
     }
+
+    const insts = getLocalStore<Institution[]>("institutions", [initialInstitution]);
+    const match = insts.find((i) => i.institution_id.toUpperCase() === targetId.toUpperCase());
+    if (match) return match;
+
+    if (currentUser?.role === "INSTITUTE" && currentUser.name) {
+      return {
+        institution_id: targetId,
+        name: currentUser.name,
+        code: currentUser.name.replace(/[^A-Za-z0-9]/g, "-").toUpperCase().substring(0, 16),
+        official_email: currentUser.email,
+        public_key: `Ed25519-PubKey-${targetId}`,
+        verified: true,
+        created_at: new Date().toISOString(),
+      };
+    }
+
     return initialInstitution;
   },
 
@@ -509,6 +764,23 @@ export const api = {
     } catch {
       return local;
     }
+  },
+
+  /**
+   * Strictly returns credentials issued ONLY by the specified institution.
+   * Ensures zero credential mixup between institutions.
+   */
+  async getInstitutionCredentials(institutionId?: string): Promise<Credential[]> {
+    const currentUser = api.getCurrentUser();
+    const effectiveInstId = institutionId || currentUser?.institution_id;
+    if (!effectiveInstId) {
+      return [];
+    }
+
+    const allCreds = await api.getCredentials();
+    return allCreds.filter(
+      (c) => c.institution_id && c.institution_id.toUpperCase() === effectiveInstId.toUpperCase()
+    );
   },
 
   async getCredentialById(id: string): Promise<Credential | null> {
@@ -1178,37 +1450,57 @@ export const api = {
     return { is_valid: true, total_blocks: blocks.length };
   },
 
-  // Student specific
+  // Student specific: Enforces strict locker privacy so students only see their own credentials
   async getStudentCredentials(
-    studentId = "STU-RAHUL-01",
+    studentId?: string,
     studentName?: string,
-    rollNumber?: string
+    rollNumber?: string,
+    credentialId?: string
   ): Promise<Credential[]> {
+    const currentUser = api.getCurrentUser();
+    const effectiveStudentId = studentId !== undefined ? studentId : currentUser?.student_id;
+    const effectiveName = studentName !== undefined ? studentName : (currentUser?.role === "STUDENT" ? currentUser?.name : undefined);
+    const effectiveCredId = credentialId || currentUser?.credential_id;
+    const claimedIds: string[] = currentUser?.claimed_credential_ids || (effectiveCredId ? [effectiveCredId] : []);
+
+    // If a student user has no identifying records, never return other students' credentials!
+    if (!effectiveStudentId && !effectiveName && !effectiveCredId && claimedIds.length === 0) {
+      return [];
+    }
+
     const backendUp = await isBackendAvailable();
     if (backendUp) {
       try {
-        const res = await apiClient.get(`/student/credentials${studentId ? `?student_id=${encodeURIComponent(studentId)}` : ""}`);
-        if (Array.isArray(res.data) && res.data.length > 0) {
+        const params = new URLSearchParams();
+        if (effectiveCredId) params.append("credential_id", effectiveCredId);
+        if (effectiveStudentId) params.append("student_id", effectiveStudentId);
+        if (effectiveName) params.append("student_name", effectiveName);
+        const res = await apiClient.get(`/student/credentials?${params.toString()}`);
+        if (Array.isArray(res.data)) {
           return res.data;
         }
       } catch {
-        // Fall back
+        // Fall back to local
       }
     }
 
     const creds = await api.getCredentials();
 
     const matches = creds.filter((c) => {
-      if (studentId && c.student_id && c.student_id.toUpperCase() === studentId.toUpperCase()) return true;
-      if (studentName && c.latest_version?.student_name.toLowerCase().includes(studentName.toLowerCase())) return true;
-      if (rollNumber && c.latest_version?.roll_number.toLowerCase() === rollNumber.toLowerCase()) return true;
+      // 1. Direct Credential ID match
+      if (effectiveCredId && c.credential_id.toUpperCase() === effectiveCredId.toUpperCase()) return true;
+      // 2. Claimed credential IDs match
+      if (claimedIds.some((cid) => cid.toUpperCase() === c.credential_id.toUpperCase())) return true;
+      // 3. Student ID match
+      if (effectiveStudentId && c.student_id && c.student_id.toUpperCase() === effectiveStudentId.toUpperCase()) return true;
+      // 4. Student Name match
+      if (effectiveName && c.latest_version?.student_name.toLowerCase().trim() === effectiveName.toLowerCase().trim()) return true;
+      // 5. Roll number match
+      if (rollNumber && c.latest_version?.roll_number.toLowerCase().trim() === rollNumber.toLowerCase().trim()) return true;
       return false;
     });
 
-    if (matches.length > 0) {
-      return matches;
-    }
-
-    return creds;
+    // Strictly return only matching credentials. Never leak other students' credentials!
+    return matches;
   },
 };
