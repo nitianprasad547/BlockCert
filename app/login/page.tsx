@@ -19,7 +19,9 @@ import {
   CheckCircle2,
   AlertTriangle,
   User as UserIcon,
-  RefreshCw
+  RefreshCw,
+  LogIn,
+  UserPlus
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { firebaseAuthService, isLiveFirebaseConfigured } from "@/lib/firebase";
@@ -28,9 +30,11 @@ import { UserRole } from "@/types";
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const initialRole = (searchParams.get("role") as UserRole) || "INSTITUTE";
+  const initialRoleParam = (searchParams.get("role")?.toUpperCase() as UserRole) || "INSTITUTE";
 
-  const [selectedRole, setSelectedRole] = useState<UserRole>(initialRole);
+  const [selectedRole, setSelectedRole] = useState<UserRole>(
+    ["INSTITUTE", "STUDENT", "EMPLOYER"].includes(initialRoleParam) ? initialRoleParam : "INSTITUTE"
+  );
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("Password123!");
   const [loading, setLoading] = useState(false);
@@ -68,14 +72,14 @@ function LoginForm() {
       email: "recruiter@techcorp.com",
       icon: Briefcase,
       color: "border-amber-500/40 text-amber-400 bg-amber-950/20",
-      redirect: "/verify",
+      redirect: "/employer/dashboard",
     },
   ];
 
   const completeLoginAndRedirect = async (userEmail: string, role: UserRole, customName?: string, userPassword?: string) => {
     try {
       await api.login(userEmail, role, customName || "", userPassword);
-      const target = personas.find(p => p.role === role)?.redirect || (role === "STUDENT" ? "/student/dashboard" : role === "EMPLOYER" ? "/verify" : "/institute/dashboard");
+      const target = personas.find(p => p.role === role)?.redirect || (role === "STUDENT" ? "/student/dashboard" : role === "EMPLOYER" ? "/employer/dashboard" : "/institute/dashboard");
       router.push(target);
     } catch (err: any) {
       setError(err?.message || "Failed to establish session.");
@@ -103,7 +107,23 @@ function LoginForm() {
 
     setLoading(true);
     setError(null);
-    const targetEmail = email.trim().toLowerCase();
+    const targetInput = email.trim();
+    if (selectedRole === "STUDENT") {
+      try {
+        await api.loginWithCredentialId(targetInput.toUpperCase());
+        router.push("/student/dashboard");
+        return;
+      } catch (credErr: any) {
+        if (targetInput.toUpperCase().startsWith("CRED-")) {
+          setError(credErr.message || "Failed to locate academic record on the ledger.");
+          setLoading(false);
+          return;
+        }
+        // If an email was typed, continue to email flow
+      }
+    }
+
+    const targetEmail = targetInput.toLowerCase();
 
     try {
       if (isLiveFirebaseConfigured()) {
@@ -143,8 +163,23 @@ function LoginForm() {
   };
 
   return (
-    <div className="w-full max-w-xl mx-auto space-y-8">
+    <div className="w-full max-w-xl mx-auto space-y-6">
       
+      {/* 2-Menu Switcher: Sign In vs Sign Up (Account Creation) */}
+      <div className="grid grid-cols-2 p-1.5 rounded-2xl bg-slate-900/90 border border-white/10 shadow-lg">
+        <div className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500/20 to-teal-500/20 border border-emerald-500/40 text-xs font-bold text-emerald-300 shadow-sm">
+          <LogIn className="h-4 w-4 text-emerald-400" />
+          <span>Sign In / Login</span>
+        </div>
+        <Link
+          href={`/signup?role=${selectedRole}`}
+          className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold text-slate-400 hover:text-white transition-all"
+        >
+          <UserPlus className="h-4 w-4 text-slate-500" />
+          <span>Create Account (Sign Up)</span>
+        </Link>
+      </div>
+
       {/* Title */}
       <div className="text-center space-y-3">
         <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 border border-emerald-500/30 px-3.5 py-1 text-xs font-bold text-emerald-400">
@@ -253,20 +288,40 @@ function LoginForm() {
 
 
           <div>
-            <label className="block font-semibold text-slate-300 mb-1">Email Address</label>
+            <label className="block font-semibold text-slate-300 mb-1">
+              {selectedRole === "STUDENT" ? "Email Address or Issued Credential ID" : "Email Address"}
+            </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
-                <Mail className="h-4 w-4" />
+                {selectedRole === "STUDENT" && email.toUpperCase().startsWith("CRED-") ? (
+                  <ShieldCheck className="h-4 w-4 text-cyan-400" />
+                ) : (
+                  <Mail className="h-4 w-4" />
+                )}
               </div>
               <input
-                type="email"
+                type={selectedRole === "STUDENT" ? "text" : "email"}
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder={selectedRole === "INSTITUTE" ? "registrar@stanford.edu" : selectedRole === "STUDENT" ? "rahul@student.edu" : "recruiter@techcorp.com"}
+                placeholder={
+                  selectedRole === "INSTITUTE"
+                    ? "registrar@stanford.edu"
+                    : selectedRole === "STUDENT"
+                    ? "rahul@student.edu or CRED-7F83A91"
+                    : "recruiter@techcorp.com"
+                }
                 className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
               />
             </div>
+            {selectedRole === "STUDENT" && (
+              <div className="flex items-center justify-between text-[11px] text-slate-400 mt-1">
+                <span>Enter your permanent <strong className="text-cyan-300 font-mono">Credential ID</strong> (e.g. CRED-7F83A91).</span>
+                <Link href="/student/login" className="text-cyan-400 font-bold hover:underline shrink-0 ml-2">
+                  Student Portal &amp; QR →
+                </Link>
+              </div>
+            )}
           </div>
 
           <div>

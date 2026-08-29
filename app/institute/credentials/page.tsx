@@ -30,12 +30,16 @@ export default function InstituteCredentialsPage() {
   const [statusFilter, setStatusFilter] = useState<"ALL" | "ACTIVE" | "REVOKED">("ALL");
   const [loading, setLoading] = useState(true);
 
+  const [currentUser, setCurrentUser] = useState(() => (typeof window !== "undefined" ? api.getCurrentUser() : null));
+
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
       try {
+        const user = api.getCurrentUser();
+        setCurrentUser(user);
         const [creds, insts] = await Promise.all([
-          api.getCredentials(),
+          api.getInstitutionCredentials(user?.institution_id || undefined),
           api.getInstitutions(),
         ]);
         setCredentials(creds);
@@ -213,6 +217,23 @@ export default function InstituteCredentialsPage() {
                 <tr>
                   <td colSpan={6} className="py-12 text-center text-slate-400 font-mono">
                     Loading credentials registry...
+                  </td>
+                </tr>
+              ) : credentials.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-14 text-center space-y-3">
+                    <Award className="h-10 w-10 text-slate-600 mx-auto" />
+                    <div className="space-y-1">
+                      <p className="text-sm font-bold text-slate-300">0 Credentials in Registry</p>
+                      <p className="text-xs text-slate-500">Your institution has not issued any academic credentials yet.</p>
+                    </div>
+                    <Link
+                      href="/institute/credentials/new"
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-500 text-slate-950 font-bold text-xs hover:bg-emerald-400 transition-colors"
+                    >
+                      <PlusCircle className="h-4 w-4" />
+                      <span>Issue First Credential</span>
+                    </Link>
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (

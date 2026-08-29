@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { 
@@ -11,11 +11,16 @@ import {
   CheckCircle2, 
   Building2, 
   GraduationCap, 
+  Briefcase,
   Search, 
   Layers, 
   Lock,
   LogOut,
-  User as UserIcon
+  User as UserIcon,
+  ChevronDown,
+  LogIn,
+  UserPlus,
+  LayoutDashboard
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { firebaseAuthService } from "@/lib/firebase";
@@ -27,13 +32,32 @@ interface NavbarProps {
 
 export default function Navbar({ onOpenDemoModal }: NavbarProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [activeDropdown, setActiveDropdown] = useState<"INSTITUTE" | "STUDENT" | "EMPLOYER" | null>(null);
   const [currentUser, setCurrentUser] = useState<User | null>(() => (typeof window !== "undefined" ? api.getCurrentUser() : null));
   const pathname = usePathname();
   const router = useRouter();
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const user = api.getCurrentUser();
     setCurrentUser((prev) => (prev?.user_id !== user?.user_id || prev?.name !== user?.name ? user : prev));
+  }, [pathname]);
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setActiveDropdown(null);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Close dropdowns on route change
+  useEffect(() => {
+    setActiveDropdown(null);
+    setMobileMenuOpen(false);
   }, [pathname]);
 
   const handleLogout = () => {
@@ -41,6 +65,10 @@ export default function Navbar({ onOpenDemoModal }: NavbarProps) {
     firebaseAuthService.logout();
     setCurrentUser(null);
     router.push("/");
+  };
+
+  const toggleDropdown = (role: "INSTITUTE" | "STUDENT" | "EMPLOYER") => {
+    setActiveDropdown((prev) => (prev === role ? null : role));
   };
 
   return (
@@ -67,7 +95,7 @@ export default function Navbar({ onOpenDemoModal }: NavbarProps) {
         </Link>
 
         {/* Desktop Navigation Links */}
-        <nav className="hidden md:flex items-center space-x-6 lg:space-x-8 text-sm font-medium text-slate-300">
+        <nav className="hidden md:flex items-center space-x-5 lg:space-x-7 text-sm font-medium text-slate-300">
           <Link
             href="/verify"
             className={`flex items-center gap-1.5 hover:text-emerald-400 transition-colors py-1 ${
@@ -106,39 +134,194 @@ export default function Navbar({ onOpenDemoModal }: NavbarProps) {
             About
           </Link>
 
-          {/* Role Portals Shortcut Dropdown/Links */}
-          <div className="flex items-center gap-3 pl-2 border-l border-slate-800">
-            <Link
-              href="/institute/dashboard"
-              className={`text-xs px-2.5 py-1.5 rounded-lg border transition-all ${
-                pathname?.startsWith("/institute")
-                  ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-300 font-bold"
-                  : "bg-slate-900 border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white"
-              }`}
-            >
-              <span className="flex items-center gap-1.5">
-                <Building2 className="h-3.5 w-3.5 text-emerald-400" />
-                <span>Institute</span>
-              </span>
-            </Link>
+          {/* 3 Core Roles with 2-Menu Dropdowns (Sign In & Sign Up) */}
+          <div ref={dropdownRef} className="flex items-center gap-2.5 pl-2 border-l border-slate-800">
+            
+            {/* 1. INSTITUTE */}
+            <div className="relative">
+              <div className="inline-flex rounded-lg border border-emerald-500/30 bg-slate-900 p-0.5 shadow-sm">
+                <Link
+                  href="/signup?role=INSTITUTE"
+                  id="institute-direct-link"
+                  className={`text-xs px-2.5 py-1 rounded-md transition-all flex items-center gap-1.5 ${
+                    pathname?.startsWith("/institute")
+                      ? "bg-emerald-500/25 text-emerald-300 font-bold"
+                      : "text-emerald-300 hover:text-white hover:bg-emerald-500/10"
+                  }`}
+                  title="Institute Portal (Click to Sign Up / Create Account)"
+                >
+                  <Building2 className="h-3.5 w-3.5 text-emerald-400" />
+                  <span>Institute</span>
+                </Link>
+                <button
+                  type="button"
+                  id="institute-menu-trigger"
+                  onClick={() => toggleDropdown("INSTITUTE")}
+                  className={`px-1.5 py-1 rounded-md hover:bg-emerald-500/10 text-emerald-400 transition-colors cursor-pointer ${
+                    activeDropdown === "INSTITUTE" ? "bg-emerald-500/20" : ""
+                  }`}
+                  aria-label="Institute Authentication Menu"
+                >
+                  <ChevronDown className={`h-3 w-3 transition-transform ${activeDropdown === "INSTITUTE" ? "rotate-180" : ""}`} />
+                </button>
+              </div>
 
-            <Link
-              href="/student/dashboard"
-              className={`text-xs px-2.5 py-1.5 rounded-lg border transition-all ${
-                pathname?.startsWith("/student")
-                  ? "bg-cyan-500/20 border-cyan-500/40 text-cyan-300 font-bold"
-                  : "bg-slate-900 border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white"
-              }`}
-            >
-              <span className="flex items-center gap-1.5">
-                <GraduationCap className="h-3.5 w-3.5 text-cyan-400" />
-                <span>Student</span>
-              </span>
-            </Link>
+              {activeDropdown === "INSTITUTE" && (
+                <div className="absolute left-0 mt-2 w-48 rounded-xl bg-slate-900 border border-emerald-500/30 p-1.5 shadow-xl shadow-black/60 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
+                  <div className="px-2.5 py-1 text-[10px] font-bold text-emerald-400 uppercase tracking-wider border-b border-white/5 mb-1">
+                    Institute Portal
+                  </div>
+                  <Link
+                    href="/login?role=INSTITUTE"
+                    onClick={() => setActiveDropdown(null)}
+                    className="flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-semibold text-slate-200 hover:bg-emerald-500/10 hover:text-emerald-300 transition-colors"
+                  >
+                    <LogIn className="h-3.5 w-3.5 text-emerald-400" />
+                    <span>Sign In / Login</span>
+                  </Link>
+                  <Link
+                    href="/signup?role=INSTITUTE"
+                    onClick={() => setActiveDropdown(null)}
+                    className="flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-semibold text-slate-200 hover:bg-emerald-500/10 hover:text-emerald-300 transition-colors"
+                  >
+                    <UserPlus className="h-3.5 w-3.5 text-emerald-400" />
+                    <span>Create Account (Sign Up)</span>
+                  </Link>
+                  <div className="my-1 border-t border-white/5" />
+                  <Link
+                    href="/institute/dashboard"
+                    onClick={() => setActiveDropdown(null)}
+                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[11px] font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                  >
+                    <LayoutDashboard className="h-3 w-3" />
+                    <span>Go to Dashboard</span>
+                  </Link>
+                </div>
+              )}
+            </div>
+
+            {/* 2. STUDENT */}
+            <div className="relative">
+              <div className="inline-flex rounded-lg border border-cyan-500/30 bg-slate-900 p-0.5 shadow-sm">
+                <Link
+                  href="/student/login"
+                  id="student-direct-link"
+                  className={`text-xs px-2.5 py-1 rounded-md transition-all flex items-center gap-1.5 ${
+                    pathname?.startsWith("/student")
+                      ? "bg-cyan-500/25 text-cyan-300 font-bold"
+                      : "text-cyan-300 hover:text-white hover:bg-cyan-500/10"
+                  }`}
+                  title="Student Scorecard Portal (Access with Credential ID)"
+                >
+                  <GraduationCap className="h-3.5 w-3.5 text-cyan-400" />
+                  <span>Student</span>
+                </Link>
+                <button
+                  type="button"
+                  id="student-menu-trigger"
+                  onClick={() => toggleDropdown("STUDENT")}
+                  className={`px-1.5 py-1 rounded-md hover:bg-cyan-500/10 text-cyan-400 transition-colors cursor-pointer ${
+                    activeDropdown === "STUDENT" ? "bg-cyan-500/20" : ""
+                  }`}
+                  aria-label="Student Scorecard Menu"
+                >
+                  <ChevronDown className={`h-3 w-3 transition-transform ${activeDropdown === "STUDENT" ? "rotate-180" : ""}`} />
+                </button>
+              </div>
+
+              {activeDropdown === "STUDENT" && (
+                <div className="absolute left-0 mt-2 w-52 rounded-xl bg-slate-900 border border-cyan-500/30 p-1.5 shadow-xl shadow-black/60 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
+                  <div className="px-2.5 py-1 text-[10px] font-bold text-cyan-400 uppercase tracking-wider border-b border-white/5 mb-1">
+                    Student Scorecard Portal
+                  </div>
+                  <Link
+                    href="/student/login"
+                    onClick={() => setActiveDropdown(null)}
+                    className="flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-semibold text-slate-200 hover:bg-cyan-500/10 hover:text-cyan-300 transition-colors"
+                  >
+                    <LogIn className="h-3.5 w-3.5 text-cyan-400" />
+                    <span>Access with Credential ID</span>
+                  </Link>
+                  <div className="my-1 border-t border-white/5" />
+                  <Link
+                    href="/student/dashboard"
+                    onClick={() => setActiveDropdown(null)}
+                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[11px] font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                  >
+                    <LayoutDashboard className="h-3 w-3" />
+                    <span>My Locker &amp; Scorecard</span>
+                  </Link>
+                </div>
+              )}
+            </div>
+
+            {/* 3. EMPLOYER (Changed from Login / Portals, direct redirect to Employer signup) */}
+            <div className="relative">
+              <div className="inline-flex rounded-lg border border-amber-500/30 bg-slate-900 p-0.5 shadow-sm">
+                <Link
+                  href="/signup?role=EMPLOYER"
+                  id="employer-direct-link"
+                  className={`text-xs px-2.5 py-1 rounded-md transition-all flex items-center gap-1.5 ${
+                    pathname?.startsWith("/employer")
+                      ? "bg-amber-500/25 text-amber-300 font-bold"
+                      : "text-amber-300 hover:text-white hover:bg-amber-500/10"
+                  }`}
+                  title="Employer Portal (Click to Sign Up)"
+                >
+                  <Briefcase className="h-3.5 w-3.5 text-amber-400" />
+                  <span>Employer</span>
+                </Link>
+                <button
+                  type="button"
+                  id="employer-menu-trigger"
+                  onClick={() => toggleDropdown("EMPLOYER")}
+                  className={`px-1.5 py-1 rounded-md hover:bg-amber-500/10 text-amber-400 transition-colors cursor-pointer ${
+                    activeDropdown === "EMPLOYER" ? "bg-amber-500/20" : ""
+                  }`}
+                  aria-label="Employer Authentication Menu"
+                >
+                  <ChevronDown className={`h-3 w-3 transition-transform ${activeDropdown === "EMPLOYER" ? "rotate-180" : ""}`} />
+                </button>
+              </div>
+
+              {activeDropdown === "EMPLOYER" && (
+                <div className="absolute right-0 mt-2 w-52 rounded-xl bg-slate-900 border border-amber-500/30 p-1.5 shadow-xl shadow-black/60 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
+                  <div className="px-2.5 py-1 text-[10px] font-bold text-amber-400 uppercase tracking-wider border-b border-white/5 mb-1">
+                    Employer Verifier
+                  </div>
+                  <Link
+                    href="/login?role=EMPLOYER"
+                    onClick={() => setActiveDropdown(null)}
+                    className="flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-semibold text-slate-200 hover:bg-amber-500/10 hover:text-amber-300 transition-colors"
+                  >
+                    <LogIn className="h-3.5 w-3.5 text-amber-400" />
+                    <span>Sign In / Login</span>
+                  </Link>
+                  <Link
+                    href="/signup?role=EMPLOYER"
+                    onClick={() => setActiveDropdown(null)}
+                    className="flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-semibold text-slate-200 hover:bg-amber-500/10 hover:text-amber-300 transition-colors"
+                  >
+                    <UserPlus className="h-3.5 w-3.5 text-amber-400" />
+                    <span>Create Account (Sign Up)</span>
+                  </Link>
+                  <div className="my-1 border-t border-white/5" />
+                  <Link
+                    href="/employer/dashboard"
+                    onClick={() => setActiveDropdown(null)}
+                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[11px] font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                  >
+                    <LayoutDashboard className="h-3 w-3 text-amber-400" />
+                    <span>Employer Dashboard</span>
+                  </Link>
+                </div>
+              )}
+            </div>
+
           </div>
         </nav>
 
-        {/* Action CTAs */}
+        {/* Action CTAs / User Profile Status */}
         <div className="flex items-center gap-3">
           {currentUser ? (
             <div className="flex items-center gap-2">
@@ -157,11 +340,11 @@ export default function Navbar({ onOpenDemoModal }: NavbarProps) {
             </div>
           ) : (
             <Link
-              href="/login"
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-semibold text-slate-200 transition-colors cursor-pointer"
+              href="/signup"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-xs font-semibold text-emerald-400 transition-colors cursor-pointer"
             >
-              <UserIcon className="h-3.5 w-3.5 text-emerald-400" />
-              <span>Login / Portals</span>
+              <UserPlus className="h-3.5 w-3.5" />
+              <span>Get Started</span>
             </Link>
           )}
 
@@ -172,7 +355,7 @@ export default function Navbar({ onOpenDemoModal }: NavbarProps) {
               onClick={onOpenDemoModal}
               className="group hidden lg:inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-2 text-sm font-semibold text-slate-950 shadow-md shadow-emerald-500/20 hover:from-emerald-400 hover:to-teal-400 transition-all cursor-pointer"
             >
-              <span>Live Workflow Demo</span>
+              <span>Live Demo</span>
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
             </button>
           )}
@@ -195,7 +378,7 @@ export default function Navbar({ onOpenDemoModal }: NavbarProps) {
           <Link
             href="/verify"
             onClick={() => setMobileMenuOpen(false)}
-            className="flex items-center gap-2 w-full px-3 py-2.5 rounded-lg text-sm font-medium text-slate-200 hover:bg-emerald-500/10 hover:text-emerald-400 cursor-pointer"
+            className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-medium text-slate-200 hover:bg-emerald-500/10 hover:text-emerald-400 cursor-pointer"
           >
             <Search className="h-4 w-4 text-emerald-400" />
             <span>Verify Credential</span>
@@ -203,56 +386,122 @@ export default function Navbar({ onOpenDemoModal }: NavbarProps) {
           <Link
             href="/how-it-works"
             onClick={() => setMobileMenuOpen(false)}
-            className="block w-full px-3 py-2.5 rounded-lg text-sm font-medium text-slate-200 hover:bg-emerald-500/10 hover:text-emerald-400 cursor-pointer"
+            className="block w-full px-3 py-2 rounded-lg text-sm font-medium text-slate-200 hover:bg-emerald-500/10 hover:text-emerald-400 cursor-pointer"
           >
             How It Works
           </Link>
           <Link
             href="/security"
             onClick={() => setMobileMenuOpen(false)}
-            className="block w-full px-3 py-2.5 rounded-lg text-sm font-medium text-slate-200 hover:bg-emerald-500/10 hover:text-emerald-400 cursor-pointer"
+            className="block w-full px-3 py-2 rounded-lg text-sm font-medium text-slate-200 hover:bg-emerald-500/10 hover:text-emerald-400 cursor-pointer"
           >
             Security Specifications
           </Link>
           <Link
             href="/about"
             onClick={() => setMobileMenuOpen(false)}
-            className="block w-full px-3 py-2.5 rounded-lg text-sm font-medium text-slate-200 hover:bg-emerald-500/10 hover:text-emerald-400 cursor-pointer"
+            className="block w-full px-3 py-2 rounded-lg text-sm font-medium text-slate-200 hover:bg-emerald-500/10 hover:text-emerald-400 cursor-pointer"
           >
             About BlockCert
           </Link>
 
-          {onOpenDemoModal && (
-            <button
-              type="button"
-              onClick={() => {
-                setMobileMenuOpen(false);
-                onOpenDemoModal();
-              }}
-              className="flex items-center justify-center gap-2 w-full px-3 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 font-bold text-sm cursor-pointer shadow-md"
-            >
-              <span>Schedule Registrar Demo</span>
-              <ArrowRight className="h-4 w-4" />
-            </button>
-          )}
+          {/* Role Portals & Auth Menus */}
+          <div className="pt-2 border-t border-slate-800 space-y-3">
+            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-1">
+              Role Access &amp; Portals
+            </div>
 
-          <div className="pt-2 border-t border-slate-800 grid grid-cols-2 gap-2">
-            <Link
-              href="/institute/dashboard"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-emerald-950/40 border border-emerald-500/30 text-emerald-300 text-xs font-bold cursor-pointer"
-            >
-              <Building2 className="h-3.5 w-3.5" />
-              <span>Institute Portal</span>
-            </Link>
-            <Link
-              href="/student/dashboard"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-cyan-950/40 border border-cyan-500/30 text-cyan-300 text-xs font-bold cursor-pointer"
-            >
-              <GraduationCap className="h-3.5 w-3.5" />
-              <span>Student Portal</span>
-            </Link>
+            {/* Institute section */}
+            <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/20 p-2.5 space-y-2">
+              <div className="flex items-center justify-between text-xs font-bold text-emerald-400">
+                <span className="flex items-center gap-1.5">
+                  <Building2 className="h-3.5 w-3.5" />
+                  <span>Institute</span>
+                </span>
+                <Link
+                  href="/institute/dashboard"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="text-[10px] text-emerald-300 hover:underline"
+                >
+                  Dashboard →
+                </Link>
+              </div>
+              <div className="grid grid-cols-2 gap-1.5 pt-1">
+                <Link
+                  href="/login?role=INSTITUTE"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="py-1.5 text-center rounded-lg bg-slate-900 border border-slate-800 text-xs font-medium text-slate-200 hover:bg-emerald-500/10"
+                >
+                  Sign In
+                </Link>
+                <Link
+                  href="/signup?role=INSTITUTE"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="py-1.5 text-center rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-xs font-bold text-emerald-300"
+                >
+                  Create Account
+                </Link>
+              </div>
+            </div>
+
+            {/* Student section */}
+            <div className="rounded-xl border border-cyan-500/30 bg-cyan-950/20 p-2.5 space-y-2">
+              <div className="flex items-center justify-between text-xs font-bold text-cyan-400">
+                <span className="flex items-center gap-1.5">
+                  <GraduationCap className="h-3.5 w-3.5" />
+                  <span>Student</span>
+                </span>
+                <Link
+                  href="/student/dashboard"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="text-[10px] text-cyan-300 hover:underline"
+                >
+                  Locker →
+                </Link>
+              </div>
+                <Link
+                  href="/student/login"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="w-full py-2 text-center rounded-lg bg-cyan-500/20 border border-cyan-500/40 text-xs font-bold text-cyan-300 flex items-center justify-center gap-1.5"
+                >
+                  <LogIn className="h-3.5 w-3.5" />
+                  <span>Access with Credential ID</span>
+                </Link>
+            </div>
+
+            {/* Employer section */}
+            <div className="rounded-xl border border-amber-500/30 bg-amber-950/20 p-2.5 space-y-2">
+              <div className="flex items-center justify-between text-xs font-bold text-amber-400">
+                <span className="flex items-center gap-1.5">
+                  <Briefcase className="h-3.5 w-3.5" />
+                  <span>Employer</span>
+                </span>
+                <Link
+                  href="/employer/dashboard"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="text-[10px] text-amber-300 hover:underline"
+                >
+                  Dashboard →
+                </Link>
+              </div>
+              <div className="grid grid-cols-2 gap-1.5 pt-1">
+                <Link
+                  href="/login?role=EMPLOYER"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="py-1.5 text-center rounded-lg bg-slate-900 border border-slate-800 text-xs font-medium text-slate-200 hover:bg-amber-500/10"
+                >
+                  Sign In
+                </Link>
+                <Link
+                  href="/signup?role=EMPLOYER"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="py-1.5 text-center rounded-lg bg-amber-500/20 border border-amber-500/40 text-xs font-bold text-amber-300"
+                >
+                  Create Account
+                </Link>
+              </div>
+            </div>
+
           </div>
 
           <div className="pt-2">
@@ -269,11 +518,11 @@ export default function Navbar({ onOpenDemoModal }: NavbarProps) {
               </button>
             ) : (
               <Link
-                href="/login"
+                href="/signup"
                 onClick={() => setMobileMenuOpen(false)}
                 className="block w-full text-center rounded-xl bg-emerald-500 py-2.5 text-sm font-bold text-slate-950 shadow-lg shadow-emerald-500/20 cursor-pointer"
               >
-                Sign In to BlockCert
+                Get Started with BlockCert
               </Link>
             )}
           </div>

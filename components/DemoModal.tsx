@@ -333,7 +333,9 @@ export default function DemoModal({ type, onClose }: DemoModalProps) {
                       </div>
 
                       <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 text-[11px] font-mono text-emerald-300 space-y-1 overflow-x-auto">
-                        <div className="text-slate-400">// Deterministic Canonical JSON Payload:</div>
+                        <div className="text-slate-400">
+  {"// Deterministic Canonical JSON Payload:"}
+</div>
                         <pre className="text-[10px] text-slate-200">
 {`{
   "cgpa": ${cgpa || 8.5},

@@ -20,7 +20,12 @@ export default function StudentCredentialsListPage() {
   const loadCredentials = () => {
     const user = api.getCurrentUser();
     api
-      .getStudentCredentials(user?.student_id || undefined, user?.name || undefined)
+      .getStudentCredentials(
+        user?.student_id || undefined, 
+        user?.name || undefined, 
+        undefined, 
+        user?.credential_id || undefined
+      )
       .then((data) => {
         setCredentials(data);
         setLoadError(null);
@@ -35,7 +40,12 @@ export default function StudentCredentialsListPage() {
     let isMounted = true;
     const user = api.getCurrentUser();
     api
-      .getStudentCredentials(user?.student_id || undefined, user?.name || undefined)
+      .getStudentCredentials(
+        user?.student_id || undefined, 
+        user?.name || undefined, 
+        undefined, 
+        user?.credential_id || undefined
+      )
       .then((data) => {
         if (isMounted) {
           setCredentials(data);
@@ -87,6 +97,20 @@ export default function StudentCredentialsListPage() {
           >
             Retry
           </button>
+        </div>
+      ) : credentials.length === 0 ? (
+        <div className="py-16 text-center space-y-4 rounded-3xl glass-panel border border-white/10 bg-slate-900/80 p-8 max-w-lg mx-auto">
+          <Award className="h-12 w-12 text-slate-500 mx-auto" />
+          <h3 className="text-lg font-bold text-white">No Credentials In Your Locker</h3>
+          <p className="text-xs text-slate-400">
+            You do not have any credentials linked to your identity yet. If your institute gave you a Credential ID, link it on your dashboard.
+          </p>
+          <Link
+            href="/student/dashboard"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-cyan-500 text-slate-950 font-bold text-xs shadow-md"
+          >
+            Go to Student Dashboard →
+          </Link>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
