@@ -23,8 +23,12 @@ export default function Footer({ onOpenDemoModal, onOpenWhitepaperModal }: Foote
           {/* Brand Info Column (Spans 2 columns on desktop) */}
           <div className="col-span-2 space-y-4 text-left">
             <Link href="/" className="flex items-center gap-2.5 group">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400">
-                <ShieldCheck className="h-5 w-5" />
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 p-0.5 overflow-hidden">
+                <img 
+                  src="/logo.png" 
+                  alt="BlockCert Logo" 
+                  className="h-full w-full object-contain group-hover:scale-110 transition-transform duration-300" 
+                />
               </div>
               <span className="text-xl font-extrabold text-white">
                 Block<span className="text-emerald-400">Cert</span>

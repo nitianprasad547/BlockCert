@@ -92,60 +92,7 @@ export default function Home() {
         {/* 2. Key Cryptographic Statistics Bar */}
         <StatsBar />
 
-        {/* 3. How It Works Pipeline Overview */}
-        <section className="py-20 bg-slate-950/70 relative border-t border-white/5">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="text-center space-y-3 max-w-2xl mx-auto mb-14">
-              <div className="inline-flex items-center gap-2 rounded-md bg-emerald-500/10 border border-emerald-500/30 px-3 py-1 text-xs font-bold text-emerald-400">
-                <ShieldCheck className="h-3.5 w-3.5" />
-                <span className="uppercase tracking-wider">CRYPTOGRAPHIC LIFECYCLE</span>
-              </div>
-              <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
-                How BlockCert guarantees absolute authenticity
-              </h2>
-              <p className="text-slate-400 text-sm sm:text-base">
-                From academic marksheet generation to instant employer validation in 6 automated cryptographic steps.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {steps.map((s, idx) => {
-                const Icon = s.icon;
-                return (
-                  <div
-                    key={idx}
-                    className="rounded-3xl glass-panel p-6 border border-white/10 bg-slate-900/70 hover:border-emerald-500/40 glass-panel-hover text-left space-y-4 relative"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-mono text-2xl font-extrabold text-slate-700">
-                        {s.step}
-                      </span>
-                      <div className={`p-2.5 rounded-xl bg-slate-950 border border-slate-800 ${s.color}`}>
-                        <Icon className="h-5 w-5" />
-                      </div>
-                    </div>
-                    <div className="space-y-1.5">
-                      <h3 className="text-base font-bold text-white">{s.title}</h3>
-                      <p className="text-xs text-slate-300 leading-relaxed">{s.desc}</p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="mt-10 text-center">
-              <Link
-                href="/how-it-works"
-                className="inline-flex items-center gap-2 text-xs font-bold text-emerald-400 hover:text-emerald-300 transition-colors"
-              >
-                <span>Explore Full 8-Stage Interactive Lifecycle &amp; Security Specs</span>
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </div>
-          </div>
-        </section>
-
-        {/* 4. Three-Sided Role Ecosystem Overview (PRD Section 16 & 33) */}
+        {/* 3. Three-Sided Role Ecosystem Overview (Product Philosophy) */}
         <section className="py-20 bg-slate-950 relative border-t border-white/5">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="text-center space-y-3 max-w-2xl mx-auto mb-14">
@@ -262,6 +209,59 @@ export default function Home() {
                 </Link>
               </div>
 
+            </div>
+          </div>
+        </section>
+
+        {/* 4. How It Works Pipeline Overview (Cryptographic Lifecycle) */}
+        <section className="py-20 bg-slate-950/70 relative border-t border-white/5">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="text-center space-y-3 max-w-2xl mx-auto mb-14">
+              <div className="inline-flex items-center gap-2 rounded-md bg-emerald-500/10 border border-emerald-500/30 px-3 py-1 text-xs font-bold text-emerald-400">
+                <ShieldCheck className="h-3.5 w-3.5" />
+                <span className="uppercase tracking-wider">CRYPTOGRAPHIC LIFECYCLE</span>
+              </div>
+              <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+                How BlockCert guarantees absolute authenticity
+              </h2>
+              <p className="text-slate-400 text-sm sm:text-base">
+                From academic marksheet generation to instant employer validation in 6 automated cryptographic steps.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {steps.map((s, idx) => {
+                const Icon = s.icon;
+                return (
+                  <div
+                    key={idx}
+                    className="rounded-3xl glass-panel p-6 border border-white/10 bg-slate-900/70 hover:border-emerald-500/40 glass-panel-hover text-left space-y-4 relative"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-2xl font-extrabold text-slate-700">
+                        {s.step}
+                      </span>
+                      <div className={`p-2.5 rounded-xl bg-slate-950 border border-slate-800 ${s.color}`}>
+                        <Icon className="h-5 w-5" />
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <h3 className="text-base font-bold text-white">{s.title}</h3>
+                      <p className="text-xs text-slate-300 leading-relaxed">{s.desc}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="mt-10 text-center">
+              <Link
+                href="/how-it-works"
+                className="inline-flex items-center gap-2 text-xs font-bold text-emerald-400 hover:text-emerald-300 transition-colors"
+              >
+                <span>Explore Full 8-Stage Interactive Lifecycle &amp; Security Specs</span>
+                <ArrowRight className="h-4 w-4" />
+              </Link>
             </div>
           </div>
         </section>

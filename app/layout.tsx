@@ -16,6 +16,11 @@ export const metadata: Metadata = {
   title: "BlockCert | Blockchain-Based Academic Credential Verification Platform",
   description: "Secure, tamper-evident academic credential verification platform using Ed25519 digital signatures, SHA-256 hash chains, and permanent QR codes.",
   keywords: ["academic credentials", "blockchain verification", "digital diploma", "Ed25519", "tamper-proof", "BlockCert"],
+  icons: {
+    icon: "/logo.png",
+    shortcut: "/logo.png",
+    apple: "/logo.png",
+  },
 };
 
 export default function RootLayout({

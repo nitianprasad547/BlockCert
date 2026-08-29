@@ -77,8 +77,12 @@ export default function Navbar({ onOpenDemoModal }: NavbarProps) {
         
         {/* Brand Logo */}
         <Link href="/" className="flex items-center gap-2.5 cursor-pointer group">
-          <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500/20 via-cyan-500/20 to-amber-500/10 border border-emerald-500/40 shadow-lg shadow-emerald-500/10 group-hover:border-emerald-400/70 transition-all">
-            <ShieldCheck className="h-6 w-6 text-emerald-400 group-hover:scale-105 transition-transform" />
+          <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500/20 via-cyan-500/20 to-amber-500/10 border border-emerald-500/40 shadow-lg shadow-emerald-500/10 group-hover:border-emerald-400/70 transition-all p-0.5 overflow-hidden">
+            <img 
+              src="/logo.png" 
+              alt="BlockCert Logo" 
+              className="h-full w-full object-contain group-hover:scale-110 transition-transform duration-300 drop-shadow-[0_0_8px_rgba(56,189,248,0.4)]" 
+            />
             <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
